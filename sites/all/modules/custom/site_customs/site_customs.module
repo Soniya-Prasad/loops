@@ -1,0 +1,1639 @@
+<?php
+function site_customs_cron() {
+  
+  // Return all nids of nodes of type "article".
+  $nids = db_select('node', 'n')
+      ->fields('n', array('nid','status'))
+      ->condition('n.type', 'article')
+      ->execute()
+      ->fetchAll(); // returns an indexed array
+
+  //array_map('unlink', glob("../articles/*"));
+
+  foreach ($nids as $nid) {
+    // Call script for articles detail html
+    $url = FRONT_PAGE_PATH.'/php_script/articles.php?nid='.$nid->nid.'&status='.$nid->status;
+    site_customs_run_script($url);
+
+    // Call script for articles detail app html
+    $url1 = FRONT_PAGE_PATH.'/php_script/articles_app.php?nid='.$nid->nid.'&status='.$nid->status;
+    site_customs_run_script($url1);
+  }
+  
+  $scripts = array();
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/carousel_menu.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_slider.php',
+    FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+    FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery_mobile.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery_mobile.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all video gallery contents and generate json
+  $content = _get_all_video_gallery_contents();
+  site_custom_generate_json('video_gallery.json', $content);
+
+  // Get all photo gallery contents and generate json
+  $content = _get_all_photo_gallery_contents();
+  site_custom_generate_json('photo_gallery.json', $content);
+}
+
+/**
+ * Implements hook_permission().
+ */
+function site_customs_permission() {
+  return array(
+    'access search internship' => array(
+      'title' => t('Access Search Internship API'),
+    )
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function site_customs_menu() {
+  $items = array();
+
+  $items['frontpage'] = array(
+    'page callback' => 'site_customs_frontpage_view',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['access_denied'] = array(
+    'page callback' => 'site_customs_access_denied_view',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['admin/currently_looping_ad_settings'] = array(
+    'title' => 'Manage Currently Looping Ad',
+    'description' => 'Configuration for Manage Currently Looping Ad',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('currently_looping_ad_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/user_theme_settings'] = array(
+    'title' => 'Manage Default Theme',
+    'description' => 'Configuration for Manage Default Theme',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_theme_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/internship_access_settings'] = array(
+    'title' => 'Search Internship Access Setting',
+    'description' => 'Configuration for Search Internship Access',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('internship_access_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['event/%node/approve'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_event_approve',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['event/%node/reject'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_event_reject',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['internship/%node/approve'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_internship_approve',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['internship/%node/reject'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_internship_reject',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['contribute/%node/approve'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_contribute_approve',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['contribute/%node/reject'] = array(
+    'title' => 'Edit',
+    'page callback' => 'site_customs_contribute_reject',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['articles/update'] = array(
+    'page callback' => 'site_customs_articles_generate_html',
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/rating_feedback'] = array(
+    'title' => 'Articles Rating & Feedback',
+    'description' => t('Article rating & feedback left by users.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('site_customs_articles_reviews'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
+    'menu_name' => 'menu-article-management'
+  );
+
+  $items['admin/rating_feedback/feedback'] = array(
+    'title' => 'Articles Feedback',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+/**
+ * Form builder for reviews moderation.
+ */
+function site_customs_articles_reviews($form, &$form_state) {
+
+  $form = array();
+
+  $result = db_select('reviews', 'r')->extend('PagerDefault')->limit(15)
+    ->fields('r')
+    ->orderBy('created', 'DESC')
+    ->execute();
+
+  $header = array(
+    'node_title' => array('data' => t('Article')),
+    'username' => array('data' => t('Reviewer')),
+    'review' => array('data' => t('Review')),
+    'rating' => array('data' => t('Rating')),
+    'created' => array('data' => t('Created')),
+  );
+
+  if (!variable_get('reviews_use_rating')) {
+    unset($header['rating']);
+  }
+
+  $data = array();
+  while ($review = $result->fetchAssoc()) {
+    
+    $review_content = unserialize($review['review']);
+    $data[$review['rid']] = array(
+      'node_title' => check_plain(reviews_get_node_title($review['nid'])),
+      'username' => check_plain(reviews_get_username($review['uid'])),
+      'review' => check_markup($review_content['value'], $review_content['format']),
+      'rating' => ($review['rating']*5/100),
+      'created' => date('d/m/Y H:i',$review['created']),
+    );
+    if (!variable_get('reviews_use_rating')) {
+      unset($header['rating']);
+    }
+  }
+
+  $form['reviews'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $data,
+    '#empty' => t('There are currently no reviews.'),
+  );
+
+  $form['pager'] = array(
+    '#markup' => theme('pager', array('tags' => array())),
+  );
+
+  return $form;
+}
+
+function site_customs_articles_generate_html() {
+  // Return all nids of nodes of type "article".
+  $nids = db_select('node', 'n')
+      ->fields('n', array('nid','status'))
+      ->condition('n.type', 'article')
+      ->execute()
+      ->fetchAll(); // returns an indexed array
+
+  //array_map('unlink', glob("../articles/*"));
+
+  foreach ($nids as $nid) {
+    // Call script for articles detail html
+    $url = FRONT_PAGE_PATH.'/php_script/articles.php?nid='.$nid->nid.'&status='.$nid->status;
+    site_customs_run_script($url);
+
+    $url1 = FRONT_PAGE_PATH.'/php_script/articles_app.php?nid='.$nid->nid.'&status='.$nid->status;
+    site_customs_run_script($url1);
+  }
+
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all video gallery contents and generate json
+  $content = _get_all_video_gallery_contents();
+  site_custom_generate_json('video_gallery.json', $content);
+
+  // Get all photo gallery contents and generate json
+  $content = _get_all_photo_gallery_contents();
+  site_custom_generate_json('photo_gallery.json', $content);
+}
+
+function site_custom_generate_json($file_name, $content) {
+  $path = 'public://app/json/';
+
+  $data = json_encode($content);
+
+  if (file_prepare_directory($path, FILE_CREATE_DIRECTORY)) {
+    file_put_contents(drupal_realpath($path . $file_name), $data);
+  }
+}
+
+function site_customs_event_approve($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Approved';
+    node_save($node);
+  }
+  drupal_goto('admin/event');
+}
+
+function site_customs_event_reject($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Rejected';
+    node_save($node);
+  }
+  drupal_goto('admin/event');
+}
+
+function site_customs_internship_approve($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Approved';
+    node_save($node);
+  }
+  drupal_goto('admin/internship');
+}
+
+function site_customs_internship_reject($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Rejected';
+    node_save($node);
+  }
+  drupal_goto('admin/internship');
+}
+
+function site_customs_contribute_approve($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Approved';
+    node_save($node);
+  }
+  drupal_goto('admin/proposed-article');
+}
+
+function site_customs_contribute_reject($node) {
+  if(isset($node->field_status[LANGUAGE_NONE][0]['value'])) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 'Rejected';
+    node_save($node);
+  }
+  drupal_goto('admin/proposed-article');
+}
+
+function currently_looping_ad_form($form, &$form_state) {
+  $form['currently_looping_ad_position'] = array(
+    '#title' => t('Ad Position'),
+    '#type' => 'select',
+    '#default_value' => variable_get('currently_looping_ad_position', '6'),
+    '#options' => range(0, 10),
+    '#required' => TRUE,
+  );
+
+  $form['currently_looping_ad_script'] = array(
+    '#title' => t('Script'),
+    '#type' => 'textarea',
+    '#default_value' => variable_get('currently_looping_ad_script', ''),
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+}
+
+function user_theme_form($form, &$form_state) {
+
+  $form['user_default_theme'] = array(
+    '#type' => 'radios',
+    '#title' => t('Select User Default Theme'),
+    '#default_value' => variable_get('user_default_theme', 'black-theme'),
+    '#required' => TRUE,
+    '#options' => array(
+      'black-theme' => t('Black'),
+      'blue-theme' => t('Blue'),
+      'yellow-theme' => t('Yellow'),
+      'red-theme' => t('Red'),
+      'green-theme' => t('Green'),
+    )
+  );
+
+  return system_settings_form($form);
+}
+
+function internship_access_form($form, &$form_state) {
+
+  $form['internship_anonymous_access'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Search Internship Access For Anonymous Users'),
+    '#return_value' => 1,
+    '#default_value' => variable_get('internship_anonymous_access'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+
+  return $form;
+}
+
+function internship_access_form_submit($form, &$form_state) {
+  $permission = array('access search internship');
+  $role = user_role_load_by_name('anonymous user');
+  if($form_state['values']['internship_anonymous_access']) {
+    user_role_grant_permissions($role->rid, $permission);
+  }
+  else {
+    user_role_revoke_permissions($role->rid, $permission);
+  }
+  variable_set('internship_anonymous_access',$form_state['values']['internship_anonymous_access']);
+  
+  drupal_set_message('The settings have been saved successfully');
+}
+
+function site_customs_frontpage_view() {
+  // These variables can be useful to redirect the users
+  // to specific pages, basing on the language currently set for
+  // the content, or on the fact the user is logged in.
+  $langcode = $GLOBALS['language_content']->language;
+  $logged_in = user_is_logged_in();
+
+  if ($logged_in) {
+    drupal_goto('admin/dashboard');
+  } else {
+    drupal_goto('user');
+  }
+}
+
+function site_customs_access_denied_view() {
+  return "Access Denied: You do not have access to this page. " . l('Click here to login','user/login');
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */ 
+function site_customs_form_photo_gallery_node_form_alter(&$form, &$form_state, $form_id) {
+  $v = taxonomy_vocabulary_machine_name_load('categories');
+  $terms = taxonomy_get_tree($v->vid,0,1);
+  $primary_term = array();
+  foreach($terms as $term) {
+    $primary_term[$term->tid] = $term->name;
+  }
+  $form['field_gallery_category'][LANGUAGE_NONE]['#options'] = $primary_term;
+
+  $form['actions']['submit']['#submit'][] = 'site_customs_photo_gallery_submit_call_script';
+}  
+
+  
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */ 
+function site_customs_form_video_gallery_node_form_alter(&$form, &$form_state, $form_id) {
+  $v = taxonomy_vocabulary_machine_name_load('categories');
+  $terms = taxonomy_get_tree($v->vid,0,1);
+  $primary_term = array();
+  foreach($terms as $term) {
+    $primary_term[$term->tid] = $term->name;
+  }
+  $form['field_gallery_category'][LANGUAGE_NONE]['#options'] = $primary_term;
+
+  $form['actions']['submit']['#submit'][] = 'site_customs_video_gallery_submit_call_script';
+}  
+  
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */ 
+function site_customs_form_article_node_form_alter(&$form, &$form_state, $form_id) {
+  /** Code for Sponsored Fields **/
+  $form['field_sponsored_logo']['#states'] = array('visible' => array(':input[name="field_issponsored[und]"]' => array('checked' => TRUE)));
+  $form['field_show_sponsored_home']['#states'] = array('visible' => array(':input[name="field_issponsored[und]"]' => array('checked' => TRUE)));
+  $form['field_show_sponsored_category']['#states'] = array('visible' => array(':input[name="field_issponsored[und]"]' => array('checked' => TRUE)));
+  $form['field_show_sponsored_sub_cat']['#states'] = array('visible' => array(':input[name="field_issponsored[und]"]' => array('checked' => TRUE)));
+  $form['field_sponsored_thumbnail']['#states'] = array('visible' => array(':input[name="field_issponsored[und]"]' => array('checked' => TRUE)));
+  
+  /** Code for Select Author **/
+  
+  
+  $form['field_select_user_or_student']['#states'] = array('visible' => array(':input[name="field_source[und]"]' => array('value' => 'user')));
+  
+  $form['field_user_name']['#states'] = array(
+    'visible' => array(':input[name="field_select_user_or_student[und]"]' => array('value' => 'user'),':input[name="field_source[und]"]' => array('value' => 'user')),
+  );
+  
+  $form['field_reference_proposed_article']['#states'] = array(
+    'visible' => array(':input[name="field_select_user_or_student[und]"]' => array('value' => 'user'),':input[name="field_source[und]"]' => array('value' => 'user')),
+  );
+  
+  $form['field_student_name']['#states'] = array(
+    'visible' => array(':input[name="field_select_user_or_student[und]"]' => array('value' => 'student'),':input[name="field_source[und]"]' => array('value' => 'user'))
+  );
+  
+  
+  
+  $form['field_expert_name']['#states'] = array('visible' => array(':input[name="field_source[und]"]' => array('value' => 'expert')));
+  $form['field_loop_staff_name']['#states'] = array('visible' => array(':input[name="field_source[und]"]' => array('value' => 'admin')));
+  $form['field_by_line']['#states'] = array('visible' => array(':input[name="field_source[und]"]' => array('value' => 'custom_byline')));
+  $form['field_thumbnail_type']['#states'] = array('visible' => array(':input[name="field_article_section_type[und][101]"]' => array('checked' => TRUE)));
+  
+  $form['field_student_name'][LANGUAGE_NONE][0]['#suffix'] = '<div style="position: relative;left: 462px;top: -39px;">'.l('Add Student','node/add/student', array('attributes' => array('target'=>'_blank'))).'</div>';
+  $form['field_expert_name'][LANGUAGE_NONE][0]['#suffix'] = '<div style="position: relative;left: 462px;top: -39px;">'.l('Add Expert','node/add/expert', array('attributes' => array('target'=>'_blank'))).'</div>';
+  $form['field_loop_staff_name'][LANGUAGE_NONE][0]['#suffix'] = '<div style="position: relative;left: 462px;top: -39px;">'.l('Add Young Times Staff','node/add/loop-staff', array('attributes' => array('target'=>'_blank'))).'</div>';
+  
+  
+  /* if(isset($form['nid']['#value']) && !empty($form['nid']['#value'])){
+    $form['actions']['preview'] = array(
+    '#type' => 'submit',
+    '#description' => t('Before preview please save the article.'),
+    '#attributes' => array('onclick' => 'window.open("'.FRONT_PAGE_PATH.'/article-preview.html?nid='.$form['nid']['#value'].'&status='.$form['#node']->status.'","_blank"); return false;'),
+    '#value' => t('Preview'),
+    '#weight' => 100,
+    );
+  }*/
+  
+  $form['#attached']['css'] = array(drupal_get_path('module','site_customs').'/css/croppie.css' => array('weight'=>1000),drupal_get_path('module','site_customs').'/css/site_customs.css' => array('weight'=>1000));
+  $form['#attached']['js'] = array(drupal_get_path('module','site_customs').'/js/croppie.min.js'=>array('weight'=>1000),drupal_get_path('module','site_customs').'/js/cropper.js'=>array('weight'=>1002));
+  if(isset($form['field_article_thumbnail_image'][LANGUAGE_NONE][0]['#default_value']['uri']) && !empty($form['field_article_thumbnail_image'][LANGUAGE_NONE][0]['#default_value']['uri'])){
+    $thumbnail_url = $form['field_article_thumbnail_image'][LANGUAGE_NONE][0]['#default_value']['uri'];
+    #drupal_add_js(array('croppie'=>array('thumbnail_image'=> file_create_url($thumbnail_url))),'setting');
+    $form['#attached']['js'][] = array(
+      'data' => array('croppie' => array('thumbnail_image' => file_create_url($thumbnail_url))),
+      'type' => 'setting',
+    );
+    if(!isset($form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value']) || empty($form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value'])){
+      $form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value'] = '_none';
+    } 
+  } else {
+    if(!isset($form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value']) || empty($form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value'])){
+      $form['field_thumbnail_type'][LANGUAGE_NONE]['#default_value'] = '_none';
+    }
+  }
+  if(isset($form['field_square_variant_points'][LANGUAGE_NONE][0]['value']['#default_value']) && !empty($form['field_square_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'])){
+    $square_points = $form['field_square_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'];
+    #drupal_add_js(array('croppie'=>array('square_points'=> '['.$square_points.']')),'setting');
+    $form['#attached']['js'][] = array(
+      'data' => array('croppie' => array('square_points' => '['.$square_points.']')),
+      'type' => 'setting',
+    );
+  }
+  if(isset($form['field_rectangular_variant_points'][LANGUAGE_NONE][0]['value']['#default_value']) && !empty($form['field_rectangular_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'])){
+    $rectangle_points = $form['field_rectangular_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'];
+    #drupal_add_js(array('croppie'=>array('rectangle_points'=> '['.$rectangle_points.']')),'setting');
+    $form['#attached']['js'][] = array(
+      'data' => array('croppie' => array('rectangle_points' => '['.$rectangle_points.']')),
+      'type' => 'setting',
+    );
+  }
+  if(isset($form['field_vertical_variant_points'][LANGUAGE_NONE][0]['value']['#default_value']) && !empty($form['field_vertical_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'])){
+    $vertical_points = $form['field_vertical_variant_points'][LANGUAGE_NONE][0]['value']['#default_value'];
+    #drupal_add_js(array('croppie'=>array('vertical_points'=> '['.$vertical_points.']')),'setting');
+    $form['#attached']['js'][] = array(
+      'data' => array('croppie' => array('vertical_points' => '['.$vertical_points.']')),
+      'type' => 'setting',
+    );
+  }
+  
+  $form['croppie_widget'] = array(
+    '#type' => 'markup',
+    '#weight' => ($form['field_article_thumbnail_image']['#weight']+0.5),
+    '#markup' => '</pre><div class="dp-upload">
+          <div id="variant_container" style="display:none;margin-top: 21px;border: 1px solid #ccc;height: 600px;">
+            <div style="float:left;margin:20px;"><span>Square Variant</span><div id="square_variant"></div></div>
+            <div style="float:left;margin:20px;"><span>Rectangle Variant</span><div id="rectangular_variant"></div></div>
+            <div style="float:left;margin:20px;"><span>Vertical Variant</span><div id="vertical_variant"></div></div>
+          </div>
+        </div>',
+  ); 
+  
+  //Change value as per the selection of Catagories
+  // $v = taxonomy_vocabulary_machine_name_load('categories');
+  // $terms = taxonomy_get_tree($v->vid,0,1);
+  // $primary_term = array();
+  // foreach($terms as $term) {
+  //   //$disabled_term[] = $term->tid;
+  //   $primary_term[$term->tid] = $term->name;
+  // }
+  //$form['field_category']['#post_render'] = array('disable_ids');
+  //$form['field_category']['#ids_to_disable'] = $disabled_term;
+  $form['field_category'][LANGUAGE_NONE]['#ajax'] = array(
+    'wrapper' => 'callback-replace-primary-category',
+    'callback' => 'site_customs_primary_category_wrapper',
+    'method' => 'replace'
+  );
+  
+  if(isset($form['field_category'][LANGUAGE_NONE]['#default_value']) && !empty($form['field_category'][LANGUAGE_NONE]['#default_value'])) {
+    $primary_term = array();
+    foreach($form['field_category'][LANGUAGE_NONE]['#default_value'] as $dterm) {
+      $pp_term = taxonomy_term_load($dterm);
+      $primary_term[$pp_term->tid] = $pp_term->name;
+    }
+  }
+ 
+  foreach($form['field_category'][LANGUAGE_NONE]['#options'] as $tid => $active_option) {
+    $active_terms = taxonomy_term_load($tid);
+    if($active_terms->field_term_status[LANGUAGE_NONE][0]['value'] == 1){
+      $active_terms_final[$active_terms->tid] = $active_terms->name;
+    }
+  }
+  $form['field_category'][LANGUAGE_NONE]['#options'] = $active_terms_final;
+  if(isset($primary_term)) {
+    $form['field_primary_category'][LANGUAGE_NONE]['#options'] = $primary_term;
+  }
+  $form['field_primary_category']['#prefix'] = '<div id="callback-replace-primary-category">';
+  $form['field_primary_category']['#suffix'] = '</div>';
+  
+  #dpr($form_state['values']['field_category']);
+  if(isset($form_state['values']['field_category'][LANGUAGE_NONE])) {
+    $primary_option = array();
+    $term_str = explode(',',$form_state['values']['field_category'][LANGUAGE_NONE][0]['tid']);
+    foreach($term_str as $term) {
+      $p_term = taxonomy_term_load($term);
+      //dpr($p_term); exit;
+      $primary_option[$p_term->tid] = $p_term->name;
+    }
+    $form['field_primary_category'][LANGUAGE_NONE]['#options'] = $primary_option; 
+  }
+
+  //print "<pre>"; print_r($primary_option); die;
+
+  $form['actions']['submit']['#submit'][] = 'site_customs_article_submit_call_script';
+  
+}
+
+function site_customs_article_submit_call_script($form, &$form_state) {
+
+  if(isset($form_state['values']['nid']) && !empty($form_state['values']['nid'])) {
+
+    $scripts = array(
+      FRONT_PAGE_PATH. '/php_script/articles.php?nid='.$form_state['values']['nid'].'&status='.$form_state['values']['status'],
+      FRONT_PAGE_PATH.'/php_script/articles_app.php?nid='.$form_state['values']['nid'].'&status='.$form_state['values']['status'],
+      FRONT_PAGE_PATH.'/php_script/homepage_slider.php',
+      FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+      FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+    );
+
+    foreach ($scripts as $script) {
+      site_customs_run_script($script);
+    }
+
+    // Get all homepage contents and generate json
+    $content = _get_all_homepage_contents();
+    site_custom_generate_json('homepage.json', $content);
+  }
+}
+
+function site_customs_photo_gallery_submit_call_script($form, &$form_state) {
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all photo gallery contents and generate json
+  $content = _get_all_photo_gallery_contents();
+  site_custom_generate_json('photo_gallery.json', $content);
+}
+
+function site_customs_video_gallery_submit_call_script($form, &$form_state) {
+
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all video gallery contents and generate json
+  $content = _get_all_video_gallery_contents();
+  site_custom_generate_json('video_gallery.json', $content);
+}
+
+function site_customs_meet_the_team_node_form_submit_call_script($form, &$form_state) {
+  $contents = '<div class="team_ct">';
+
+  if(isset($form_state['values']['body'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['body'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= '<div class="row team-member">'.$form_state['values']['body'][LANGUAGE_NONE][0]['value'].'</div>';
+  }
+
+  if(isset($form_state['values']['field_team']) && !empty($form_state['values']['field_team'])) {
+    foreach ($form_state['values']['field_team'][LANGUAGE_NONE] as $team_id) {
+      $team = node_load($team_id['nid']);
+      if(isset($team->title)) {
+        $contents .= '<div class="row team-member">';
+        if(isset($team->field_profile_picture[LANGUAGE_NONE][0]['uri']) && !empty($team->field_profile_picture[LANGUAGE_NONE][0]['uri'])) {
+          $contents .= '<div class="col-md-4"><img src="'.image_style_url('meet_the_team',$team->field_profile_picture[LANGUAGE_NONE][0]['uri']).'"></div>';
+        }
+        $contents .= '<div class="col-md-8 meet-team"><h4>'.$team->title.'</h4>';
+        $contents .= (isset($team->field_bio[LANGUAGE_NONE][0]['value']) && !empty($team->field_bio[LANGUAGE_NONE][0]['value'])) ? $team->field_bio[LANGUAGE_NONE][0]['value'] : '';
+        $gender = (isset($team->field_gender[LANGUAGE_NONE][0]['value']) && ($team->field_gender[LANGUAGE_NONE][0]['value']=='Female')) ? 'her' : 'him';
+        $contents .= 'You can stalk '.$gender.' on :-';
+        $contents .= (isset($team->field_facebook_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_facebook_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_facebook_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-fb.jpg"></a>' : '';
+        $contents .= (isset($team->field_instagram_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_instagram_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_instagram_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-insta.jpg"></a>' : '';
+        $contents .= (isset($team->field_twitter_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_twitter_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_twitter_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/twitter.png"></a>' : '';
+        $contents .= '</div></div>';
+      }
+    }
+  }
+
+  $contents .= '</div>';
+
+  file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/meet-the-team.html", $contents);
+}
+
+function site_customs_loop_staff_node_form_submit_call_script($form, &$form_state) {
+
+  // Query the nids of a particular content type.
+  $nid = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('type', 'meet_the_team', '=')
+    ->condition('status', 1, '=')
+    ->range(0, 1)
+    ->execute()
+    ->fetchCol();
+
+  if(isset($nid[0])) {
+    $node = node_load($nid[0]);
+
+    $contents = '<div class="team_ct">';
+
+    if(isset($node->body[LANGUAGE_NONE][0]['value']) && !empty($node->body[LANGUAGE_NONE][0]['value'])) {
+      $contents .= '<div class="row team-member">'.$node->body[LANGUAGE_NONE][0]['value'].'</div>';
+    }
+
+    if(isset($node->field_team) && !empty($node->field_team)) {
+      foreach ($node->field_team[LANGUAGE_NONE] as $team_id) {
+        $team = node_load($team_id['nid']);
+        if(isset($team->title)) {
+          $contents .= '<div class="row team-member">';
+          if(isset($team->field_profile_picture[LANGUAGE_NONE][0]['uri']) && !empty($team->field_profile_picture[LANGUAGE_NONE][0]['uri'])) {
+            $contents .= '<div class="col-md-4"><img src="'.image_style_url('meet_the_team',$team->field_profile_picture[LANGUAGE_NONE][0]['uri']).'"></div>';
+          }
+          $contents .= '<div class="col-md-8 meet-team"><h4>'.$team->title.'</h4>';
+          $contents .= (isset($team->field_bio[LANGUAGE_NONE][0]['value']) && !empty($team->field_bio[LANGUAGE_NONE][0]['value'])) ? $team->field_bio[LANGUAGE_NONE][0]['value'] : '';
+          $gender = (isset($team->field_gender[LANGUAGE_NONE][0]['value']) && ($team->field_gender[LANGUAGE_NONE][0]['value']=='Female')) ? 'her' : 'him';
+          $contents .= 'You can stalk '.$gender.' on :-';
+          $contents .= (isset($team->field_facebook_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_facebook_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_facebook_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-fb.jpg"></a>' : '';
+          $contents .= (isset($team->field_instagram_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_instagram_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_instagram_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-insta.jpg"></a>' : '';
+          $contents .= (isset($team->field_twitter_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_twitter_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_twitter_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/twitter.png"></a>' : '';
+          $contents .= '</div></div>';
+        }
+      }
+    }
+
+    $contents .= '</div>';
+
+    file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/meet-the-team.html", $contents);
+  }
+}
+
+function site_customs_advertise_with_us_node_form_submit_call_script($form, &$form_state) {
+  $contents = '<div class="row adv-para-new">
+    <div class="col-md- col-sm-6 col-xs-12 details-adv-contact">';
+
+  if(isset($form_state['values']['body'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['body'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= $form_state['values']['body'][LANGUAGE_NONE][0]['value'];
+  }
+
+  $contents .= '<div class="contact-details">
+          <p>Contact:-<br>
+          <b>'.$form_state['values']['field_contact_name'][LANGUAGE_NONE][0]['value'].'</b><br>
+          '.$form_state['values']['field_contact_email'][LANGUAGE_NONE][0]['email'].'<br>';
+
+  if(isset($form_state['values']['field_contact_telephone_no'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_contact_telephone_no'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= 'Tel: '.$form_state['values']['field_contact_telephone_no'][LANGUAGE_NONE][0]['value'];
+  }
+  if(isset($form_state['values']['field_contact_mobile_no'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_contact_mobile_no'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= ' | Mob: '.$form_state['values']['field_contact_mobile_no'][LANGUAGE_NONE][0]['value'];
+  }
+
+  $image = file_load($form_state['values']['field_media_thumbnail'][LANGUAGE_NONE][0]['fid']);
+  $file = file_load($form_state['values']['field_media_document'][LANGUAGE_NONE][0]['fid']);
+
+  $contents .= '</div>
+            </div>
+            <div class="col-md- col-sm-6 col-xs-12 adv-card-image">
+              <h3>'.$form_state['values']['field_media_thumbnail'][LANGUAGE_NONE][0]['title'].'</h3>
+              <img src="'.file_create_url($image->uri).'">
+              <div class="dowload-media">
+                <a href="'.file_create_url($file->uri).'" target="_blank"> <img src="../img/download-icon.png">Download Now</a>
+              </div>
+            </div>
+          </div>';
+
+  file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/advertise-with-us.html", $contents);
+}
+
+function site_customs_contact_us_node_form_submit_call_script($form, &$form_state) {
+  $contents = '';
+
+  if(isset($form_state['values']['field_block_1_heading'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_block_1_heading'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= '<h3>'. $form_state['values']['field_block_1_heading'][LANGUAGE_NONE][0]['value'] . '</h3>';
+  }
+
+  if(isset($form_state['values']['field_block_1_description'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_block_1_description'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= '<div>'. $form_state['values']['field_block_1_description'][LANGUAGE_NONE][0]['value'] . '</div>';
+  }
+
+  if(isset($form_state['values']['field_block_2_heading'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_block_2_heading'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= '<h3>'. $form_state['values']['field_block_2_heading'][LANGUAGE_NONE][0]['value'] . '</h3>';
+  }
+
+  if(isset($form_state['values']['field_block_2_description'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['field_block_2_description'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= $form_state['values']['field_block_2_description'][LANGUAGE_NONE][0]['value'];
+  }
+
+  file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/contact-us.html", $contents);
+}
+
+function site_customs_page_node_form_submit_call_script($form, &$form_state) {
+  $contents = '';
+
+  if(isset($form_state['values']['body'][LANGUAGE_NONE][0]['value']) && !empty($form_state['values']['body'][LANGUAGE_NONE][0]['value'])) {
+    $contents .= $form_state['values']['body'][LANGUAGE_NONE][0]['value'];
+  }
+
+  $path_alias = $form_state['values']['path']['alias'];
+
+  file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/".$path_alias.".html", $contents);
+}
+
+function site_customs_node_insert($node) {
+	switch ($node->type) {
+	    // case 'article':
+	    //   $scripts = array(
+    	// 		FRONT_PAGE_PATH. '/php_script/articles.php?nid='.$node->nid.'&status='.$node->status,
+    	// 		FRONT_PAGE_PATH.'/php_script/articles_app.php?nid='.$node->nid.'&status='.$node->status,
+    	// 		//FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+    	// 		//FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+	    //   );
+
+  		 //  foreach ($scripts as $script) {
+  		 //    site_customs_run_script($script);
+  		 //  }
+
+     //    $url = FRONT_PAGE_PATH.'/php_script/articles.php?nid='.$node->nid.'&status='.$node->status;
+     //    site_customs_run_script($url);
+
+	    //   // Get all homepage contents and generate json
+	    //   $content = _get_all_homepage_contents();
+	    //   site_custom_generate_json('homepage.json', $content);
+	    //   break;
+
+	    // case 'video_gallery':
+	    //   // Get all homepage contents and generate json
+	    //   $content = _get_all_homepage_contents();
+	    //   site_custom_generate_json('homepage.json', $content);
+
+	    //   // Get all video gallery contents and generate json
+	    //   $content = _get_all_video_gallery_contents();
+	    //   site_custom_generate_json('video_gallery.json', $content);
+	    //   break;
+
+	    // case 'photo_gallery':
+	    //   // Get all homepage contents and generate json
+	    //   $content = _get_all_homepage_contents();
+	    //   site_custom_generate_json('homepage.json', $content);
+
+	    //   // Get all photo gallery contents and generate json
+	    //   $content = _get_all_photo_gallery_contents();
+	    //   site_custom_generate_json('photo_gallery.json', $content);
+	    //   break;
+
+	    case 'quiz':
+	      drupal_goto('node/'.$node->nid.'/quiz/questions');
+	      break;
+  	}
+}
+
+// function site_customs_node_delete($node) {
+//   $scripts = array();
+
+//   switch ($node->type) {
+//     case 'article':
+//       // Get all homepage contents and generate json
+//       $content = _get_all_homepage_contents();
+//       site_custom_generate_json('homepage.json', $content);
+
+//       array_map('unlink', glob("../articles/articles-".$node->nid.".html"));
+//       array_map('unlink', glob("../Loop-Arabia-Mobile/articles/articles-".$node->nid.".html"));
+      
+//       $scripts = array(
+//         FRONT_PAGE_PATH.'/php_script/homepage_slider.php',
+//         FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+//         FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+//         FRONT_PAGE_PATH.'/php_script/homepage_most_popular.php',
+//         FRONT_PAGE_PATH.'/php_script/homepage_most_popular_mobile.php',
+//       );
+//       break;
+//     case 'video_gallery':
+//       // Get all homepage contents and generate json
+//       $content = _get_all_homepage_contents();
+//       site_custom_generate_json('homepage.json', $content);
+
+//       // Get all video gallery contents and generate json
+//       $content = _get_all_video_gallery_contents();
+//       site_custom_generate_json('video_gallery.json', $content);
+
+//       $scripts = array(
+//         FRONT_PAGE_PATH.'/php_script/homepage_video_gallery.php',
+//         FRONT_PAGE_PATH.'/php_script/homepage_video_gallery_mobile.php',
+//       );
+//       break;
+//     case 'photo_gallery':
+//       // Get all homepage contents and generate json
+//       $content = _get_all_homepage_contents();
+//       site_custom_generate_json('homepage.json', $content);
+
+//       // Get all photo gallery contents and generate json
+//       $content = _get_all_photo_gallery_contents();
+//       site_custom_generate_json('photo_gallery.json', $content);
+
+//       $scripts = array(
+//         FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery.php',
+//         FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery_mobile.php',
+//       );
+//       break;
+
+//     case 'loop_staff':
+
+//       // Query the nids of a particular content type.
+//       $nid = db_select('node', 'n')
+//         ->fields('n', array('nid'))
+//         ->condition('type', 'meet_the_team', '=')
+//         ->condition('status', 1, '=')
+//         ->range(0, 1)
+//         ->execute()
+//         ->fetchCol();
+
+//       if(isset($nid[0])) {
+//         $node_meet = node_load($nid[0]);
+
+//         $contents = '<div class="team_ct">';
+
+//         if(isset($node_meet->body[LANGUAGE_NONE][0]['value']) && !empty($node_meet->body[LANGUAGE_NONE][0]['value'])) {
+//           $contents .= '<div class="row team-member">'.$node_meet->body[LANGUAGE_NONE][0]['value'].'</div>';
+//         }
+
+//         if(isset($node_meet->field_team) && !empty($node_meet->field_team)) {
+//           foreach ($node_meet->field_team[LANGUAGE_NONE] as $team_id) {
+//             if($node->nid != $team_id['nid']) {
+//               $team = node_load($team_id['nid']);
+//               if(isset($team->title)) {
+//                 $contents .= '<div class="row team-member">';
+//                 if(isset($team->field_profile_picture[LANGUAGE_NONE][0]['uri']) && !empty($team->field_profile_picture[LANGUAGE_NONE][0]['uri'])) {
+//                   $contents .= '<div class="col-md-4"><img src="'.image_style_url('meet_the_team',$team->field_profile_picture[LANGUAGE_NONE][0]['uri']).'"></div>';
+//                 }
+//                 $contents .= '<div class="col-md-8 meet-team"><h4>'.$team->title.'</h4>';
+//                 $contents .= (isset($team->field_bio[LANGUAGE_NONE][0]['value']) && !empty($team->field_bio[LANGUAGE_NONE][0]['value'])) ? $team->field_bio[LANGUAGE_NONE][0]['value'] : '';
+//                 $gender = (isset($team->field_gender[LANGUAGE_NONE][0]['value']) && ($team->field_gender[LANGUAGE_NONE][0]['value']=='Female')) ? 'her' : 'him';
+//                 $contents .= 'You can stalk '.$gender.' on :-';
+//                 $contents .= (isset($team->field_facebook_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_facebook_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_facebook_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-fb.jpg"></a>' : '';
+//                 $contents .= (isset($team->field_instagram_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_instagram_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_instagram_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-insta.jpg"></a>' : '';
+//                 $contents .= (isset($team->field_twitter_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_twitter_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_twitter_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/twitter.png"></a>' : '';
+//                 $contents .= '</div></div>';
+//               }
+//             }
+//           }
+//         }
+
+//         $contents .= '</div>';
+
+//         file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/meet-the-team.html", $contents);
+//       }
+//       break;
+//   }
+
+//   foreach ($scripts as $script) {
+//     site_customs_run_script($script);
+//   }
+// }
+
+function site_customs_form_node_delete_confirm_alter(&$form, &$form_state, $form_id) {
+  $form['#submit'][] = 'site_customs_node_delete_confirm_submit';
+}
+
+function site_customs_node_delete_confirm_submit($form, &$form_state) {
+  $node = $form['#node'];
+
+  $scripts = array();
+
+  switch ($node->type) {
+    case 'article':
+      // Get all homepage contents and generate json
+      $content = _get_all_homepage_contents();
+      site_custom_generate_json('homepage.json', $content);
+
+      array_map('unlink', glob("../articles/articles-".$node->nid.".html"));
+      array_map('unlink', glob("../Loop-Arabia-Mobile/articles/articles-".$node->nid.".html"));
+      
+      $scripts = array(
+        FRONT_PAGE_PATH.'/php_script/homepage_slider.php',
+        FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+        FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+        FRONT_PAGE_PATH.'/php_script/homepage_most_popular.php',
+        FRONT_PAGE_PATH.'/php_script/homepage_most_popular_mobile.php',
+      );
+      break;
+    case 'video_gallery':
+      // Get all homepage contents and generate json
+      $content = _get_all_homepage_contents();
+      site_custom_generate_json('homepage.json', $content);
+
+      // Get all video gallery contents and generate json
+      $content = _get_all_video_gallery_contents();
+      site_custom_generate_json('video_gallery.json', $content);
+
+      $scripts = array(
+        FRONT_PAGE_PATH.'/php_script/homepage_video_gallery.php',
+        FRONT_PAGE_PATH.'/php_script/homepage_video_gallery_mobile.php',
+      );
+      break;
+    case 'photo_gallery':
+      // Get all homepage contents and generate json
+      $content = _get_all_homepage_contents();
+      site_custom_generate_json('homepage.json', $content);
+
+      // Get all photo gallery contents and generate json
+      $content = _get_all_photo_gallery_contents();
+      site_custom_generate_json('photo_gallery.json', $content);
+
+      $scripts = array(
+        FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery.php',
+        FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery_mobile.php',
+      );
+      break;
+
+    case 'loop_staff':
+
+      // Query the nids of a particular content type.
+      $nid = db_select('node', 'n')
+        ->fields('n', array('nid'))
+        ->condition('type', 'meet_the_team', '=')
+        ->condition('status', 1, '=')
+        ->range(0, 1)
+        ->execute()
+        ->fetchCol();
+
+      if(isset($nid[0])) {
+        $node_meet = node_load($nid[0]);
+
+        $contents = '<div class="team_ct">';
+
+        if(isset($node_meet->body[LANGUAGE_NONE][0]['value']) && !empty($node_meet->body[LANGUAGE_NONE][0]['value'])) {
+          $contents .= '<div class="row team-member">'.$node_meet->body[LANGUAGE_NONE][0]['value'].'</div>';
+        }
+
+        if(isset($node_meet->field_team) && !empty($node_meet->field_team)) {
+          foreach ($node_meet->field_team[LANGUAGE_NONE] as $team_id) {
+            if($node->nid != $team_id['nid']) {
+              $team = node_load($team_id['nid']);
+              if(isset($team->title)) {
+                $contents .= '<div class="row team-member">';
+                if(isset($team->field_profile_picture[LANGUAGE_NONE][0]['uri']) && !empty($team->field_profile_picture[LANGUAGE_NONE][0]['uri'])) {
+                  $contents .= '<div class="col-md-4"><img src="'.image_style_url('meet_the_team',$team->field_profile_picture[LANGUAGE_NONE][0]['uri']).'"></div>';
+                }
+                $contents .= '<div class="col-md-8 meet-team"><h4>'.$team->title.'</h4>';
+                $contents .= (isset($team->field_bio[LANGUAGE_NONE][0]['value']) && !empty($team->field_bio[LANGUAGE_NONE][0]['value'])) ? $team->field_bio[LANGUAGE_NONE][0]['value'] : '';
+                $gender = (isset($team->field_gender[LANGUAGE_NONE][0]['value']) && ($team->field_gender[LANGUAGE_NONE][0]['value']=='Female')) ? 'her' : 'him';
+                $contents .= 'You can stalk '.$gender.' on :-';
+                $contents .= (isset($team->field_facebook_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_facebook_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_facebook_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-fb.jpg"></a>' : '';
+                $contents .= (isset($team->field_instagram_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_instagram_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_instagram_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/meet-the-insta.jpg"></a>' : '';
+                $contents .= (isset($team->field_twitter_url[LANGUAGE_NONE][0]['value']) && !empty($team->field_twitter_url[LANGUAGE_NONE][0]['value'])) ? '<a href="'.$team->field_twitter_url[LANGUAGE_NONE][0]['value'].'" target="_blank"><img src="../img/twitter.png"></a>' : '';
+                $contents .= '</div></div>';
+              }
+            }
+          }
+        }
+
+        $contents .= '</div>';
+
+        file_put_contents($_SERVER['DOCUMENT_ROOT']. "/dynamic_html/meet-the-team.html", $contents);
+      }
+      break;
+  }
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+}
+
+function site_customs_run_script($url) {
+  drupal_http_request($url);
+}
+
+function site_customs_primary_category_wrapper(&$form,&$form_state) {
+  return $form['field_primary_category'];  
+}
+function disable_ids($rendered, $element){
+  if (empty($element['#ids_to_disable']) === true) {
+    return $rendered;
+  }
+  
+  $search = array();
+  $replace = array();
+  foreach ($element['#ids_to_disable'] as $id) {
+    $search[] = '<option value="' . $id. '"';
+    $replace[] = '<option value="' . $id. '" disabled="disabled" class="primegroup"';
+  }
+  $rendered = str_replace($search, $replace, $rendered);
+  
+  return $rendered;
+}
+
+function removeEmoji($text) {
+
+    $clean_text = "";
+
+    // Match Emoticons
+    $regexEmoticons = '/[\x{1F600}-\x{1F64F}]/u';
+    $clean_text = preg_replace($regexEmoticons, '', $text);
+
+    // Match Miscellaneous Symbols and Pictographs
+    $regexSymbols = '/[\x{1F300}-\x{1F5FF}]/u';
+    $clean_text = preg_replace($regexSymbols, '', $clean_text);
+
+    // Match Transport And Map Symbols
+    $regexTransport = '/[\x{1F680}-\x{1F6FF}]/u';
+    $clean_text = preg_replace($regexTransport, '', $clean_text);
+
+    // Match Miscellaneous Symbols
+    $regexMisc = '/[\x{2600}-\x{26FF}]/u';
+    $clean_text = preg_replace($regexMisc, '', $clean_text);
+
+    // Match Dingbats
+    $regexDingbats = '/[\x{2700}-\x{27BF}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    // Match Flags
+    $regexDingbats = '/[\x{1F1E6}-\x{1F1FF}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    // Others
+    $regexDingbats = '/[\x{1F910}-\x{1F95E}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    $regexDingbats = '/[\x{1F980}-\x{1F991}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    $regexDingbats = '/[\x{1F9C0}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    $regexDingbats = '/[\x{1F9F9}]/u';
+    $clean_text = preg_replace($regexDingbats, '', $clean_text);
+
+    return $clean_text;
+}
+/**
+ * Implements hook_node_presave().
+ */ 
+function site_customs_node_presave($node) {
+  #echo "<pre>" .print_r($node,"\n"). "</pre>";
+  #exit;
+  if($node->type == 'article'){
+    if(isset($node->body[LANGUAGE_NONE][0]['value']) && !empty($node->body[LANGUAGE_NONE][0]['value'])) {
+      $node->body[LANGUAGE_NONE][0]['value'] = removeEmoji($node->body[LANGUAGE_NONE][0]['value']);
+    }
+    if(isset($node->field_article_thumbnail_image[LANGUAGE_NONE]) && !empty($node->field_article_thumbnail_image[LANGUAGE_NONE])){
+      if(isset($node->field_square_variant_image_data[LANGUAGE_NONE]) && !empty($node->field_square_variant_image_data[LANGUAGE_NONE])) {
+        $dir_sq = 'public://article_thumbnail_image/square_variant_image/'.time().'-square_variant.png';
+        #echo get_image_data($node->field_square_variant_image_data[LANGUAGE_NONE][0]['value']); exit;
+        if (!$file_saved_Sq = file_save_data(base64_decode(get_image_data($node->field_square_variant_image_data[LANGUAGE_NONE][0]['value'])), $dir_sq)) {
+          $file_saved_Sq = file_save_data(base64_decode(get_image_data($node->field_square_variant_image_data[LANGUAGE_NONE][0]['value'])), $dir_sq)) ;
+        }
+        $node->field_square_variant_image[LANGUAGE_NONE][0]['fid'] = $file_saved_Sq->fid;
+        unset($node->field_square_variant_image_data[LANGUAGE_NONE]);
+      }
+      
+      if(isset($node->field_rect_variant_image_data[LANGUAGE_NONE]) && !empty($node->field_rect_variant_image_data[LANGUAGE_NONE])) {
+        $dir_rc = 'public://article_thumbnail_image/rectangular_variant_image/'.time().'-rectangular_variant.png';
+        if (!$file_saved_Rc = file_save_data(base64_decode(get_image_data($node->field_rect_variant_image_data[LANGUAGE_NONE][0]['value'])), $dir_rc)) {
+          
+        }
+        $node->field_rect_variant_image[LANGUAGE_NONE][0]['fid'] = $file_saved_Rc->fid;
+        unset($node->field_rect_variant_image_data[LANGUAGE_NONE]);
+      }
+      
+      if(isset($node->field_vert_variant_image_data[LANGUAGE_NONE]) && !empty($node->field_vert_variant_image_data[LANGUAGE_NONE])) {
+        $dir_vr = 'public://article_thumbnail_image/vertical_variant_image/'.time().'-vertical_variant.png';
+        if (!$file_saved_Vr = file_save_data(base64_decode(get_image_data($node->field_vert_variant_image_data[LANGUAGE_NONE][0]['value'])), $dir_vr)) {
+          
+        }
+        $node->field_vertical_variant_image[LANGUAGE_NONE][0]['fid'] = $file_saved_Vr->fid;
+        unset($node->field_vert_variant_image_data[LANGUAGE_NONE]);
+        
+        #dpr($node); exit;
+      }
+    } else {
+      unset($node->field_square_variant_image_data[LANGUAGE_NONE]);
+      unset($node->field_rect_variant_image_data[LANGUAGE_NONE]);
+      unset($node->field_vert_variant_image_data[LANGUAGE_NONE]);
+      unset($node->field_square_variant_image[LANGUAGE_NONE]);
+      unset($node->field_rect_variant_image[LANGUAGE_NONE]);
+      unset($node->field_vertical_variant_image[LANGUAGE_NONE]);
+    }
+  }
+  print_r($node);
+}
+
+function get_image_data($data) {
+  return $img = preg_replace('#^data:image/[^;]+;base64,#', '', $data);
+}
+
+function site_customs_form_alter (&$form,&$form_state,$form_id) {
+  
+  if($form_id == 'quiz_node_form') {
+    //print "<pre>"; print_r($form); die;
+    unset($form['title']['#description']);
+    $form['result_type']['#title'] = t('Quiz Type');
+    unset($form['result_type']['#description']);
+    
+    $form['taking']['time_limit']['#description'] = t('Set the maximum allowed time in seconds. Use 0 for no limit.');
+    
+    $form['field_venue']['#states'] = array('visible' => array(':input[name="result_type"]' => array('value' => 'competition')));
+    $form['field_competition_date']['#states'] = array('visible' => array(':input[name="result_type"]' => array('value' => 'competition')));
+    $form['field_display_result']['#states'] = array('invisible' => array(':input[name="result_type"]' => array('value' => 'competition')));
+    $form['summaryoptions']['pass_rate']['#description'] = $form['summaryoptions']['pass_rate']['#description'] . '<br />'. t('Enter zero (0) for not showing passed or failed message to the user.');
+    unset($form['summaryoptions']['tokens']);
+
+    $form['#attached']['css'] = array(drupal_get_path('module','site_customs').'/css/site_customs.css' => array('weight'=>1000));
+    if(isset($_GET['type']) && !empty($_GET['type'])) {
+      if(in_array($_GET['type'],array_keys($form['result_type']['#options']))){
+        $form['result_type']['#default_value'] = $_GET['type'];
+      }
+    }
+  }
+  if($form_id == 'views_exposed_form') {
+    $v = taxonomy_vocabulary_machine_name_load('categories');
+    $terms = taxonomy_get_tree($v->vid,0,1);
+    $primary_term = array();
+    
+    foreach($terms as $key=>$term) {
+      $primary_term[$key]->option[$term->tid] = $term->name;
+    }
+    $form['term_node_tid_depth']['#options'] = $primary_term;
+  }
+
+  if($form_id == 'views_exposed_form' && $form['#id'] == 'views-exposed-form-category-promoted-article-page') {
+    //Change value as per the selection of Catagories
+    $v = taxonomy_vocabulary_machine_name_load('categories');
+    $terms = taxonomy_get_tree($v->vid,0,1);
+    $primary_term = array();
+    foreach($terms as $term) {
+      $disabled_term[] = $term->tid;
+      $primary_term[$term->tid] = $term->name;
+    }
+    $form['tid']['#post_render'] = array('disable_ids');
+    $form['tid']['#ids_to_disable'] = $disabled_term;
+  }
+
+  if($form_id == 'views_exposed_form' && $form['#id'] == 'views-exposed-form-article-selector-page-5') {
+    //Change value as per the selection of Catagories
+    $v = taxonomy_vocabulary_machine_name_load('categories');
+    $terms = taxonomy_get_tree($v->vid,0,1);
+    $primary_term = array();
+    foreach($terms as $term) {
+      $disabled_term[] = $term->tid;
+      $primary_term[$term->tid] = $term->name;
+    }
+    $form['tid']['#post_render'] = array('disable_ids');
+    $form['tid']['#ids_to_disable'] = $disabled_term;
+  }
+
+  if (isset($form['draggableviews'][0]) && !empty($form['draggableviews'])) {
+    $form['actions']['submit']['#submit'][] = 'draggableviews_views_submit_withmessage';
+  }
+
+  if($form_id == 'advertisement_node_form') {
+    $form['#validate'][] = 'site_customs_advertisement_form_validate';
+  }
+
+  if(in_array($form_id, array('quiz_result_edit_aptitude_test_form','quiz_result_form','quiz_result_edit_competition_form'))) {
+    $form['#validate'][] = 'site_customs_edit_evaluate_form_validate';
+  }
+
+  if($form_id == 'internship_node_form') {
+    $form['field_stipend']['#states'] = array('visible' => array(':input[name="field_paid[und]"]' => array('checked' => TRUE)));
+    $form['#validate'][] = 'site_customs_internship_form_validate';
+  }
+
+  if($form_id == 'views_form_currently_looping_page') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_currently_looping_submit_call_script';
+  }
+
+  if($form_id == 'views_form_homepage_photo_gallery_page') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_homepage_photo_gallery_submit_call_script';
+  }
+
+  if($form_id == 'views_form_homepage_photo_gallery_page_1') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_homepage_video_gallery_submit_call_script';
+  }
+
+  if($form_id == 'views_form_homepage_most_popular_articles_page') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_homepage_most_popular_submit_call_script';
+  }
+
+  if($form_id == 'views_form_homepage_slider_section_1_page' || $form_id == 'views_form_homepage_slider_section_1_page_1') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_homepage_slider_submit_call_script';
+  }
+
+  if($form_id == 'taxonomy_overview_terms') {
+    $form['#submit'][] = 'site_customs_taxonomy_overview_terms_submit_call_script';
+  }
+
+  if($form_id == 'taxonomy_form_term') {
+    $form['description']['#access'] = FALSE;
+    $form['#submit'][] = 'site_customs_taxonomy_overview_terms_submit_call_script';
+  }
+
+  if($form_id == 'user_register_form') {
+    $form['field_theme_color'][LANGUAGE_NONE][0]['value']['#default_value'] = variable_get('user_default_theme');
+  }
+
+  if($form_id == 'games_node_form') {
+    $form['field_game_link']['#states'] = array('visible' => array(':input[name="field_is_iframe[und]"]' => array('checked' => FALSE)));
+    $form['field_game_iframe']['#states'] = array('visible' => array(':input[name="field_is_iframe[und]"]' => array('checked' => TRUE)));
+  }
+
+  if($form_id == 'event_node_form') {
+    //print "<pre>"; print_r($form); die;
+    $form['#attached']['js'][] = drupal_get_path('module','site_customs').'/js/event.js';
+    $form['field_address']['#states'] = array('visible' => array(':input[name="field_address_type[und]"]' => array('value' => 'custom')));
+    $form['field_geolocation_address']['#states'] = array('visible' => array(':input[name="field_address_type[und]"]' => array('value' => 'gmap')));
+  }
+
+  if($form_id == 'meet_the_team_node_form') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_meet_the_team_node_form_submit_call_script';
+  }
+
+  if($form_id == 'loop_staff_node_form') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_loop_staff_node_form_submit_call_script';
+  }
+
+  if($form_id == 'advertise_with_us_node_form') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_advertise_with_us_node_form_submit_call_script';
+  }
+
+  if($form_id == 'contact_us_node_form') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_contact_us_node_form_submit_call_script';
+  }
+
+  if($form_id == 'page_node_form') {
+    $form['actions']['submit']['#submit'][] = 'site_customs_page_node_form_submit_call_script';
+  }
+}
+
+function event_node_form_submit($form, &$form_state) {
+  if($form_state['values']['field_address_type'][LANGUAGE_NONE][0]['value']=='custom') {
+    unset($form_state['values']['field_geolocation_address'][LANGUAGE_NONE][0]);
+  }
+  else {
+    unset($form_state['values']['field_address'][LANGUAGE_NONE][0]);
+  }
+}
+
+function site_customs_edit_evaluate_form_validate($form, &$form_state) {
+  $i=1;
+  foreach ($form_state['values']['question'] as $key => $question) {
+    if(isset($question['submit']) && $question['submit']=='long_answer_report_submit') {
+      $ans = array_keys($question['response']['quiz_result_answer']);
+      if($question['score']>$question['response']['quiz_result_answer'][$ans[0]]['max_score']) {
+        form_set_error('question['.$i.'][score]', t('Score should be less than max score.'));
+        $i++;
+      }
+    }
+  }
+}
+
+function site_customs_advertisement_form_validate($form, &$form_state) {
+  if(isset($form_state['values']['field_category'][LANGUAGE_NONE][0]['tid'])) {
+    $tid = $form_state['values']['field_category'][LANGUAGE_NONE][0]['tid'];
+    $query = db_select('node', 'n');
+    $query->join('field_data_field_category', 'fdfc', 'n.nid = fdfc.entity_id');
+    $query->fields('n', array('nid'));
+    $query->condition('n.type', 'advertisement', '=');
+    $query->condition('n.status', 1, '=');
+    if(!empty($form['nid']['#value'])) {
+      $query->condition('n.nid', $form['nid']['#value'], '!=');
+    }
+    $query->condition('fdfc.field_category_tid', $tid, '=');
+    $ad_count = $query->execute()->rowCount();
+
+    if($ad_count > 0) {
+      form_set_error('field_category', t('Ad already added for this category. Please try with different category'));
+    }
+  }
+}
+
+function site_customs_internship_form_validate($form, &$form_state) {
+  if($form_state['values']['field_paid'][LANGUAGE_NONE][0]['value'] == 1) {
+    if($form_state['values']['field_stipend'][LANGUAGE_NONE][0]['value'] == 0) {
+      form_set_error('field_stipend', t('Please enter some stipend'));
+    }
+  }
+}
+
+function draggableviews_views_submit_withmessage($form, &$form_state) {
+  drupal_set_message(t('Sorting saved successfully.'),'status');
+}
+
+function site_customs_menu_alter(&$items) { 
+  $items['node/%node/view']['access callback'] = FALSE;
+  $items['taxonomy/term/%taxonomy_term']['page callback'] = 'my_taxonomy_term_page';
+} 
+
+function my_taxonomy_term_page($term) {
+  drupal_goto('taxonomy/term/'.$term->tid.'/edit',array('query'=>array('destination'=>'admin/structure/taxonomy/categories')));
+}
+
+function site_customs_currently_looping_submit_call_script() {
+  // Call script for currently looping html
+  $scripts = array();
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+    FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+}
+
+function site_customs_homepage_slider_submit_call_script() {
+  // Call script for homepage slider html
+  $url = FRONT_PAGE_PATH.'/php_script/homepage_slider.php';
+  site_customs_run_script($url);
+
+  // Get all homepage contents and generate json for app
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+}
+
+function site_customs_homepage_photo_gallery_submit_call_script() {
+  // Call script for homepage_photo_gallery html
+  $scripts = array();
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+
+  // Get all homepage contents and generate json for app
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+}
+
+function site_customs_homepage_video_gallery_submit_call_script() {
+  // Call script for homepage_video_gallery html
+  $scripts = array();
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+
+  // Get all homepage contents and generate json for app
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+}
+
+function site_customs_homepage_most_popular_submit_call_script() {
+  // Call script for homepage_most_popular html
+  $scripts = array();
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+
+  // Get all homepage contents and generate json for app
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+}
+
+function site_customs_taxonomy_overview_terms_submit_call_script() {
+  // Call script for homepage slider html
+  $url = FRONT_PAGE_PATH.'/php_script/carousel_menu.php';
+  site_customs_run_script($url);
+}
+
+// Set user default picture
+function site_customs_user_presave(&$edit, $account, $category) {
+  if (empty($edit['picture'])) {
+    $edit['picture'] = (isset($edit['field_gender'][LANGUAGE_NONE][0]['value']) && ($edit['field_gender'][LANGUAGE_NONE][0]['value'] == 'Female')) ? variable_get('default_user_picture_female',5875) : variable_get('default_user_picture',3580);
+  }
+}
+
+/**
+ * Implementation of hook_views_query_alter
+ * @param type $view
+ * @param type $query 
+ */
+function site_customs_views_query_alter(&$view, &$query) {
+  if (($view->name == 'article_selector' && $view->current_display == 'page_6') || ($view->name == 'most_popular_articles')) {
+    if($view->query->orderby[0]['field'] == 'node_comment_statistics_comment_count') {
+      $view->query->where[1]['conditions'][] = array(
+        'field' => 'node_comment_statistics.comment_count',
+        'value' => '0',
+        'operator' => '!=',
+      );
+    }
+
+    if($view->query->orderby[0]['field'] == 'node_counter_totalcount') {
+      $view->query->where[1]['conditions'][] = array(
+        'field' => 'node_counter.totalcount',
+        'value' => '0',
+        'operator' => '!=',
+      );
+    }
+
+    if($view->query->orderby[0]['field'] == 'flag_counts_node_count') {
+      $view->query->where[1]['conditions'][] = array(
+        'field' => 'flag_counts_node.count',
+        'value' => '0',
+        'operator' => '!=',
+      );
+    }
+  }
+
+}
+
+function site_customs_views_pre_render(&$view) {
+  if ($view->name == 'quiz_question_bank' && $view->current_display == 'default') {
+    if(isset($view->args[0]) && is_numeric($view->args[0])) {
+      $pid = $view->args[0];
+      $query = db_select('quiz_node_relationship', 'qnr');
+      $query->fields('qnr', array('child_nid'));
+      $query->condition('qnr.parent_nid', $pid, '=');
+      $cids = $query->execute()->fetchCol('child_nid');
+      if(count($cids) > 0) {
+        foreach ($view->result as $key => $value) {
+          if (in_array($value->nid, $cids)) {
+            unset($view->result[$key]);
+          }
+        }
+      }
+    }
+  }
+}
+
+function site_customs_user_insert(&$edit, $account, $category){
+  if (!empty($account->field_company_address['und'][0]['value'])) {
+    $uid = $account->uid;
+    $role_name = 'Company';
+    if ($role = user_role_load_by_name($role_name)) {
+      user_multiple_role_edit(array($uid), 'add_role', $role->rid);
+    }
+  }
+}
+
+function site_customs_preprocess_page(&$variables) {
+  if(current_path()=='node/add/quiz' && isset($_GET['type']) && !empty($_GET['type'])) {
+    if($_GET['type'] == 'competition')
+      $variables['title'] = 'Create Competition';
+    else if($_GET['type'] == 'aptitude_test')
+      $variables['title'] = 'Create Aptitude Test';
+  }
+
+  $arg = arg();
+  if($arg[0]=='node' && is_numeric($arg[1]) && $arg[2]=='edit' && isset($_GET['destination']) && !empty($_GET['destination'])) {
+    if($_GET['destination'] == 'admin/competition-listing')
+      $variables['title'] = 'Edit Competition';
+    else if($_GET['destination'] == 'admin/aptitude-test-listing')
+      $variables['title'] = 'Edit Aptitude Test';
+    else if($_GET['destination'] == 'admin/quiz-listing')
+      $variables['title'] = 'Edit Quiz';
+  }
+}
+
+
+/**
+* Custom function for FCM push notification
+*/
+function _fcm_notification()
+{
+	// API access key from Google FCM App Console
+define('API_ACCESS_KEY', 'AAAATKmjI8E:APA91bHy3bHAalKweC7HrCYke_Z9lY0pK--qC--TZqRhywxvXY1Jc9PtM6JKAqdK0RWimYjHXIyG-imlS9Zcms083ORpr3EG4FVBITRIrR0Rp6OQGr5WAp5iw81N4uFRuJZMxsfsBgQe');
+
+
+$singleID = 'fudY4irJbGQ:APA91bFq5bxVtscniN7kKuLZgxe9XXJOYiI43zY0jQHSGJ5wFH_HkqU4FhbHG0IoyX7lv1pWlMvhxFcjfsCUOEuEpHeXCAG6sa4B27mxbVeoxuj-q7qXlbZCqhpcwXTI05DJ0ALoJBvB'; 
+/*$registrationIDs = array(
+     'eEvFbrtfRMA:APA91bFoT2XFPeM5bLQdsa8-HpVbOIllzgITD8gL9wohZBg9U.............mNYTUewd8pjBtoywd', 
+     'eEvFbrtfRMA:APA91bFoT2XFPeM5bLQdsa8-HpVbOIllzgITD8gL9wohZBg9U.............mNYTUewd8pjBtoywd'
+     'eEvFbrtfRMA:APA91bFoT2XFPeM5bLQdsa8-HpVbOIllzgITD8gL9wohZBg9U.............mNYTUewd8pjBtoywd'
+) ;*/
+
+// prep the bundle
+// to see all the options for FCM to/notification payload: 
+// https://firebase.google.com/docs/cloud-messaging/http-server-ref#notification-payload-support 
+
+// 'vibrate' available in GCM, but not in FCM
+$fcmMsg = array(
+	'body' => 'here is a message',
+	'title' => 'This is title #2',
+	'sound' => "default",
+    'color' => "#203E78",
+    'content_available' => true,
+);
+
+$data = array(
+	"message" => "here is a data with image",
+	"title" => "This is data title #2",
+	//'sound' => "default",
+   // 'color' => "#203E78",
+    //'content_available' => true,
+   "image" => "http://www.youngtimes.com/loop/sites/default/files/styles/homepage_slider_1_style/public/article_thumbnail_image/square_variant_image/1514897176-square_variant.png"
+);
+
+ $fields = array();
+   $fields['data'] = $data;
+  // if(is_array($target)){
+//	$fields['registration_ids'] = $target;
+  // }else{
+	$fields['to'] = $singleID;
+  // }
+
+// 'to' => $singleID ;  // expecting a single ID
+// 'registration_ids' => $registrationIDs ;  // expects an array of ids
+// 'priority' => 'high' ; // options are normal and high, if not set, defaults to high.
+
+/*$fcmFields = array(
+	'to' => $singleID,
+    'priority' => 'high',
+	//'notification' => $fcmMsg,
+	'data'=> $fcmDataMsg,
+);*/
+
+
+//exit;
+$headers = array(
+	'Authorization: key=' . API_ACCESS_KEY,
+	'Content-Type: application/json'
+);
+ 
+$ch = curl_init();
+curl_setopt($ch,CURLOPT_URL, 'https://android.googleapis.com/gcm/send');
+curl_setopt($ch,CURLOPT_POST, true);
+curl_setopt($ch,CURLOPT_HTTPHEADER, $headers);
+curl_setopt($ch,CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch,CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch,CURLOPT_POSTFIELDS, json_encode($fields));
+//print_R($ch);
+$result = curl_exec($ch);
+curl_close($ch);
+echo $result . "\n\n";
+}

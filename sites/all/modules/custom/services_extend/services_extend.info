@@ -1,0 +1,3 @@
+name = Extended Services Module
+description = Custom on services module.
+core=7.x

@@ -1,0 +1,76 @@
+/** Custom Code **/
+
+.group-article-thumbnail {
+  display:none;
+}
+
+#edit-field-categories-und {
+  width: 458px;
+  height: 259px;
+}
+
+#edit-field-article-thumbnail-image-und-0-upload-button {
+  display:none;
+}
+
+.node-type-article #edit-field-article-section-type-und > div:nth-child(n+2),.page-node-add-article #edit-field-article-section-type-und > div:nth-child(n+2){
+  display:none;
+}
+.form-item-promote,.node-type-article .form-item-sticky,.page-node-add-article .form-item-promote,.page-node-add-article .form-item-sticky{
+  display:none;
+}
+
+/*.node-type-article .vertical-tabs-panes.vertical-tabs-processed,.page-node-add-article  .vertical-tabs-panes.vertical-tabs-processed{
+    height: 28px;
+}*/
+
+/** Quiz related Admin CSS **/
+.node-quiz-form .form-item-remember-global { display:none; }
+.node-quiz-form .form-item-remember-settings { display:none; }
+/*.node-quiz-form .form-item-result-type { display:none; }*/
+
+
+.node-quiz-form .form-item-allow-resume,
+.node-quiz-form .form-item-allow-skipping,
+.node-quiz-form .form-item-allow-jumping,
+.node-quiz-form .form-item-allow-change,
+.node-quiz-form .form-item-allow-change-blank,
+.node-quiz-form .form-item-backwards-navigation,
+.node-quiz-form .form-item-repeat-until-correct,
+.node-quiz-form .form-item-build-on-last,
+.node-quiz-form .form-item-mark-doubtful,
+.node-quiz-form .form-item-show-passed,
+.node-quiz-form .form-item-randomization
+{ display:none; }
+
+.node-quiz-form #edit-review-options { display:none; }
+.node-quiz-form #multiple-takes-fieldset { display:none; }
+/*.node-quiz-form .form-item-time-limit .description{display:none;}*/
+.node-quiz-form .form-item-quiz-open .description,.node-quiz-form .form-item-quiz-close .description{display:none;}
+.node-quiz-form .form-item-sticky{display:none;}
+.node-quiz-form .vertical-tabs-list .vertical-tab-button:nth-child(4) { display:none; }
+
+
+.cke_wysiwyg_frame blockquote.twitter-tweet:before {
+    content: 'Twitter Card';
+    position: absolute;
+    top: -22px;
+    left: 0px;
+    background: #efefef;
+    padding: 0px 8px;
+}
+.cke_wysiwyg_frame blockquote.twitter-tweet {
+    border: 1px solid #ccc;
+    position: relative;
+    margin-top: 35px;
+}
+
+#edit-field-show-sponsored-category,#edit-field-show-sponsored-sub-cat {
+	display:none !important;
+}
+.primegroup{
+  font-weight: bold;
+  font-size: large;
+  font-style: italic;
+  color: #FF2E4E;
+}

@@ -1,0 +1,7 @@
+name = Hybridauth Services
+description = Hybridauth register and login functionality for services module.
+core = 7.x
+version = "7.x-1.0"
+package = "HybridAuth"
+dependencies[] = services
+dependencies[] = hybridauth

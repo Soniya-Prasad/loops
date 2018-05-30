@@ -1,0 +1,5 @@
+name = HTML Game Services
+description = Service support for html game module.
+core = 7.x
+dependencies[] = services
+package = Custom

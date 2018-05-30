@@ -1,0 +1,51 @@
+<?php
+function user_category_preference_schema() {
+	$schema['user_category_preference'] = array(
+		'description' => 'Base table for User Category Preference.', 
+		'fields' => array(
+			'id' => array(
+				'description' => 'The primary identifier for a User Category Preference', 
+				'type' => 'serial',
+				'not null' => TRUE
+			),
+			'uid' => array(
+				'description' => 'User id for User Category Preference',
+				'type' => 'int',
+				'length' => 50,
+				'not null' => TRUE
+			),
+			'tid' => array(
+				'description' => 'Taxonomy id for User Category Preference.',
+				'type' => 'int',
+				'length' => 50,
+				'not null' => FALSE
+			),
+			'weight' => array(
+				'description' => 'Weight of User Category Preference.',
+				'type' => 'int',
+				'length' => 50,
+				'not null' => FALSE
+			)
+		),
+		'primary key' => array('id'),
+	);
+	return $schema;
+}
+
+// function faq_install() {
+// 	node_types_rebuild();
+// 	$types = node_type_get_types();
+// 	node_add_body_field($types['faq']);
+// }
+
+// function faq_uninstall() {
+//   $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+//   $result = db_query($sql, array(':type' => 'faq'));
+//   $nids = array();
+//   foreach ($result as $row) {
+//     $nids[] = $row->nid;
+//   }
+//   node_delete_multiple($nids);
+// }
+
+?>

@@ -1,0 +1,1388 @@
+<?php
+define('FRONT_PAGE_PATH', variable_get('front_end_url'));
+
+/**
+ * Implements of hook_services_resources().
+ */
+function services_custom_services_resources() {
+  $api = array(
+    'user_picture_attach' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Change user picture',
+          'callback' => '_user_picture_attach_update', 
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'Change user picture by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user picture data to update',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'change_avatar' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Change user avatar',
+          'callback' => '_user_avatar_update', 
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'Change user avatar by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'fid',
+              'type' => 'int',
+              'description' => 'The fid of avatar',
+              'source' => array('path' => '1'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'user_update_pass' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Change user password',
+          'callback' => '_user_change_password', 
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'Change user password by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user password data to update',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'user_create_pass' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Change user password',
+          'callback' => '_user_create_password', 
+          'access callback' => 'services_access_menu',
+          'args' => array(
+            array(
+              'name' => 'timestamp',
+              'optional' => FALSE,
+              'type' => 'int',
+              'description' => 'The timestamp value from the reset password link.',
+              'source' => array('path' => '0'),
+            ),
+            array(
+              'name' => 'uuid',
+              'type' => 'string',
+              'description' => 'Change user password by user id.',
+              'source' => array('path' => '1'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user password data to update',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'user_validate' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Activate user',
+          'callback' => '_user_activate', 
+          'access callback' => 'services_access_menu',
+          'args' => array(
+            array(
+              'name' => 'uuid',
+              'type' => 'string',
+              'description' => 'Change user password by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'today_poll' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve todays poll by ip',
+          'callback' => '_get_today_poll',
+          'access arguments' => array('vote on polls'),
+          'args' => array(
+            array(
+              'name' => 'sid',
+              'type' => 'string',
+              'description' => 'The session api string.',
+              'source' => array('path' => '0'),
+              'optional' => TRUE,
+            ),
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '1'),
+              'optional' => TRUE,
+            ),
+          ),
+        ),
+        'update' => array(
+          'help' => 'Add user vote',
+          'callback' => '_add_user_vote',
+          'access arguments' => array('vote on polls'),
+          'args' => array(
+            array(
+              'name' => 'chid',
+              'type' => 'int',
+              'description' => 'The option id',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user poll vote to add',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'fivestar_rating' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Add user star rating',
+          'callback' => '_add_user_rating',
+          'access arguments' => array('rate content'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user star rating to create',
+              'type' => 'array',
+            ),
+          ),
+        ),
+        'retrieve' => array(
+          'help' => 'Retrieve user star rating',
+          'callback' => '_get_user_rating',
+          'access arguments' => array('rate content'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '1'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'rate_and_review' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Add user rating and review',
+          'callback' => '_add_user_review',
+          'access arguments' => array('add reviews'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user star rating to create',
+              'type' => 'array',
+            ),
+          ),
+        ),
+        'retrieve' => array(
+          'help' => 'Retrieve user review',
+          'callback' => '_get_user_review',
+          'access arguments' => array('add reviews'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '1'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'user_rate_and_review' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve current user review',
+          'callback' => '_get_user_rate_and_review',
+          'access arguments' => array('add reviews'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '1'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'event' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create an event',
+          'callback' => '_create_event',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to create', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+        'update' => array(
+          'help' => 'Update an event',
+          'callback' => '_update_event',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to update', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'ask_the_expert' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create Ask the Expert',
+          'callback' => '_create_ask_the_expert',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to create', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'internship' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create Internship',
+          'callback' => '_create_internship',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to create', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+        'update' => array(
+          'help' => 'Update Internship',
+          'callback' => '_update_internship',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to update', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'metatag' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve metatag',
+          'callback' => '_get_metatag',
+          'access arguments' => array('access content'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'internship_filter_list' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve all taxonomy terns used for filter internship',
+          'callback' => '_internship_filter_list',
+          'access arguments' => array('access content'),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+
+function _internship_filter_list() {
+  $result = array();
+
+  $result['locations'] = _get_vocabulary_terms(9);
+  $result['industries'] = _get_vocabulary_terms(10);
+  $result['skills'] = _get_vocabulary_terms(11);
+
+  return $result;
+}
+
+function _get_vocabulary_terms($vid) {
+  if(isset($vid) && is_numeric($vid)) {
+    $term_array = array();
+    $terms = taxonomy_get_tree($vid);
+    foreach ($terms as $term) {
+      $term_array[$term->tid] = $term->name;
+    }
+    return $term_array;
+  }
+}
+
+function _get_metatag($nid) {
+  $meta_array = array();
+  $query = db_select('metatag', 'm');
+  $query->fields('m', array('data'));
+  $query->condition('m.entity_id', $nid, '=');
+  $query->orderBy('m.revision_id', 'DESC');
+  $query->range(0,1);
+  $meta_detail = $query->execute()->fetchCol('data');
+
+  $node = node_load($nid);
+
+  $meta = isset($meta_detail[0]) ? unserialize($meta_detail[0]) : array();
+  $meta_array['title'] = isset($meta['title']['value']) ? $meta['title']['value'] : $node->title;
+  $meta_array['description'] = isset($meta['description']['value']) ? $meta['description']['value'] : $node->field_intro[LANGUAGE_NONE][0]['value'];
+  $image_src = isset($meta['image_src']['value']) ? $meta['image_src']['value'] : image_style_url('meta_tag', $node->field_square_variant_image[LANGUAGE_NONE][0]['uri']);
+  $meta_array['image_src'] = preg_replace("/\?.*$/", "", $image_src);
+  $meta_array['canonical'] = isset($meta['canonical']['value']) ? $meta['canonical']['value'] : '';
+  $meta_array['og_title'] = isset($meta['og:title']['value']) ? $meta['og:title']['value'] : $node->title;
+  $meta_array['og_description'] = isset($meta['og:description']['value']) ? $meta['og:description']['value'] : $node->field_intro[LANGUAGE_NONE][0]['value'];
+  $og_image = isset($meta['og:image']['value']) ? $meta['og:image']['value'] : image_style_url('meta_tag', $node->field_square_variant_image[LANGUAGE_NONE][0]['uri']);
+  $meta_array['og_image'] = preg_replace("/\?.*$/", "", $og_image);
+  $og_image_url = isset($meta['og:image:url']['value']) ? $meta['og:image:url']['value'] : image_style_url('meta_tag', $node->field_square_variant_image[LANGUAGE_NONE][0]['uri']);
+  $meta_array['og_image_url'] = preg_replace("/\?.*$/", "", $og_image_url);
+  $meta_array['og_site_name'] = variable_get('site_name', 'Loop Arabia');
+
+  return $meta_array;
+
+}
+
+function _create_event($node) {
+
+  $address = '';
+  $node = _services_arg_value($node, 'node');
+  
+  $nodeObj = new StdClass();
+  $nodeObj->type = 'event';
+  $nodeObj->status = 0;
+  $nodeObj->language = LANGUAGE_NONE;
+  if(isset($node['uid']) && is_numeric($node['uid'])) {
+    $user = user_load($node['uid']);
+    $nodeObj->uid = $node['uid'];
+  } else {
+    return services_error(t('User id does not exist.'),406);
+  }
+
+  if(isset($node['title']) && !empty($node['title'])) {
+    $nodeObj->title = $node['title'];
+  } else {
+    return services_error(t('Event title does not exist.'),406);
+  }
+  if(isset($node['body']) && !empty($node['body'])) {
+    $nodeObj->body[LANGUAGE_NONE][0]['value'] = $node['body'];
+  } else {
+    return services_error(t("Event description is missing."), 406);
+  }
+
+  if(isset($node['image']) && is_numeric($node['image'])) {
+    $nodeObj->field_event_image[LANGUAGE_NONE][0]['fid'] = $node['image'];
+  } else {
+    return services_error(t("Event image is missing."), 406);
+  }
+
+  if(isset($node['start_date']) && !empty($node['start_date'])) {
+    $nodeObj->field_date[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s',strtotime($node['start_date']));
+  }
+
+  if(isset($node['end_date']) && !empty($node['end_date'])) {
+    $nodeObj->field_date[LANGUAGE_NONE][0]['value2'] = date('Y-m-d H:i:s',strtotime($node['end_date']));
+  }
+
+  $nodeObj->field_status[LANGUAGE_NONE][0]['value'] = 'Pending';
+
+  if(isset($node['organised_by']) && !empty($node['organised_by'])) {
+    $nodeObj->field_organised_by[LANGUAGE_NONE][0]['value'] = $node['organised_by'];
+  }
+
+  if(isset($node['organized_by_logo']) && is_numeric($node['organized_by_logo'])) {
+    $nodeObj->field_organized_by_logo[LANGUAGE_NONE][0]['fid'] = $node['organized_by_logo'];
+  }
+
+  if(isset($node['field_address']) && !empty($node['field_address'])) {
+    $nodeObj->field_address[LANGUAGE_NONE][0]['value'] = $node['field_address'];
+    $nodeObj->field_address_type[LANGUAGE_NONE][0]['value'] = 'custom';
+  } 
+  else if(isset($node['field_geolocation_address']) && count($node['field_geolocation_address'])>0) {
+    $nodeObj->field_address_type[LANGUAGE_NONE][0]['value'] = 'gmap';
+
+    if(isset($node['field_geolocation_address']['address1']) && !empty($node['field_geolocation_address']['address1'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['thoroughfare'] = $node['field_geolocation_address']['address1'];
+      $address .= $node['field_geolocation_address']['address1'];
+    } else {
+      return services_error(t('Address 1 does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['address2']) && !empty($node['field_geolocation_address']['address2'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['premise'] = $node['field_geolocation_address']['address2'];
+      $address .= $node['field_geolocation_address']['address2'];
+    }
+
+    if(isset($node['field_geolocation_address']['city']) && !empty($node['field_geolocation_address']['city'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['locality'] = $node['field_geolocation_address']['city'];
+      $address .= $node['field_geolocation_address']['city'];
+    }
+
+    if(isset($node['field_geolocation_address']['emirate']) && !empty($node['field_geolocation_address']['emirate'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['administrative_area'] = $node['field_geolocation_address']['emirate'];
+      $states = location_get_provinces($node['field_geolocation_address']['country']);
+      $address .= $states[$node['field_geolocation_address']['emirate']];
+    } else {
+      return services_error(t('Emirate does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['pincode']) && !empty($node['field_geolocation_address']['pincode'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['postal_code'] = $node['field_geolocation_address']['pincode'];
+      $address .= $node['field_geolocation_address']['pincode'];
+    }
+
+    if(isset($node['field_geolocation_address']['country']) && !empty($node['field_geolocation_address']['country'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['country'] = $node['field_geolocation_address']['country'];
+      $countries = _addressfield_country_options_list();
+      $address .= $countries[$node['field_geolocation_address']['country']];
+    } else {
+      return services_error(t('Country does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['latitude']) && !empty($node['field_geolocation_address']['latitude']) && isset($node['field_geolocation_address']['longitude']) && !empty($node['field_geolocation_address']['longitude'])) {
+      $address_data = array(
+        "latitude" => $node['field_geolocation_address']['latitude'],
+        "longitude" => $node['field_geolocation_address']['longitude'],
+        "zoom" => 14,
+        "formatted_address" => isset($node['field_geolocation_address']['formatted_address'])?$node['field_geolocation_address']['formatted_address']:$address,
+      );
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['data'] = serialize($address_data);
+    }
+    else {
+      return services_error(t('Co-ordinates does not exist.'),406);
+    }
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _update_event($nid, $node) {
+
+  $address = '';
+  $node = _services_arg_value($node, 'node');
+
+  $nodeObj = node_load($nid);
+
+  if(isset($node['published']) && is_numeric($node['published'])) {
+    $nodeObj->status = $node['published'];
+  }
+
+  if(isset($node['title']) && !empty($node['title'])) {
+    $nodeObj->title = $node['title'];
+  } else {
+    return services_error(t('Event title does not exist.'),406);
+  }
+  if(isset($node['body']) && !empty($node['body'])) {
+    $nodeObj->body[LANGUAGE_NONE][0]['value'] = $node['body'];
+  } else {
+    return services_error(t("Event description is missing."), 406);
+  }
+
+  if(isset($node['image']) && is_numeric($node['image'])) {
+    $nodeObj->field_event_image[LANGUAGE_NONE][0]['fid'] = $node['image'];
+  } else {
+    return services_error(t("Event image is missing."), 406);
+  }
+
+  if(isset($node['start_date']) && !empty($node['start_date'])) {
+    $nodeObj->field_date[LANGUAGE_NONE][0]['value'] = date('Y-m-d H:i:s',strtotime($node['start_date']));
+  }
+
+  if(isset($node['end_date']) && !empty($node['end_date'])) {
+    $nodeObj->field_date[LANGUAGE_NONE][0]['value2'] = date('Y-m-d H:i:s',strtotime($node['end_date']));
+  }
+
+  $nodeObj->field_status[LANGUAGE_NONE][0]['value'] = 'Pending';
+
+  if(isset($node['organised_by']) && !empty($node['organised_by'])) {
+    $nodeObj->field_organised_by[LANGUAGE_NONE][0]['value'] = $node['organised_by'];
+  }
+
+  if(isset($node['organized_by_logo']) && is_numeric($node['organized_by_logo'])) {
+    $nodeObj->field_organized_by_logo[LANGUAGE_NONE][0]['fid'] = $node['organized_by_logo'];
+  }
+
+  if(isset($node['field_address']) && !empty($node['field_address'])) {
+    $nodeObj->field_address[LANGUAGE_NONE][0]['value'] = $node['field_address'];
+    $nodeObj->field_address_type[LANGUAGE_NONE][0]['value'] = 'custom';
+  } 
+  else if(isset($node['field_geolocation_address']) && count($node['field_geolocation_address'])>0) {
+    $nodeObj->field_address_type[LANGUAGE_NONE][0]['value'] = 'gmap';
+
+    if(isset($node['field_geolocation_address']['address1']) && !empty($node['field_geolocation_address']['address1'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['thoroughfare'] = $node['field_geolocation_address']['address1'];
+      $address .= $node['field_geolocation_address']['address1'];
+    } else {
+      return services_error(t('Address 1 does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['address2']) && !empty($node['field_geolocation_address']['address2'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['premise'] = $node['field_geolocation_address']['address2'];
+      $address .= $node['field_geolocation_address']['address2'];
+    }
+
+    if(isset($node['field_geolocation_address']['city']) && !empty($node['field_geolocation_address']['city'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['locality'] = $node['field_geolocation_address']['city'];
+      $address .= $node['field_geolocation_address']['city'];
+    }
+
+    if(isset($node['field_geolocation_address']['emirate']) && !empty($node['field_geolocation_address']['emirate'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['administrative_area'] = $node['field_geolocation_address']['emirate'];
+      $states = location_get_provinces($node['field_geolocation_address']['country']);
+      $address .= $states[$node['field_geolocation_address']['emirate']];
+    } else {
+      return services_error(t('Emirate does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['pincode']) && !empty($node['field_geolocation_address']['pincode'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['postal_code'] = $node['field_geolocation_address']['pincode'];
+      $address .= $node['field_geolocation_address']['pincode'];
+    }
+
+    if(isset($node['field_geolocation_address']['country']) && !empty($node['field_geolocation_address']['country'])) {
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['country'] = $node['field_geolocation_address']['country'];
+      $countries = _addressfield_country_options_list();
+      $address .= $countries[$node['field_geolocation_address']['country']];
+    } else {
+      return services_error(t('Country does not exist.'),406);
+    }
+
+    if(isset($node['field_geolocation_address']['latitude']) && !empty($node['field_geolocation_address']['latitude']) && isset($node['field_geolocation_address']['longitude']) && !empty($node['field_geolocation_address']['longitude'])) {
+      $address_data = array(
+        "latitude" => $node['field_geolocation_address']['latitude'],
+        "longitude" => $node['field_geolocation_address']['longitude'],
+        "zoom" => 14,
+        "formatted_address" => isset($node['field_geolocation_address']['formatted_address'])?$node['field_geolocation_address']['formatted_address']:$address,
+      );
+      $nodeObj->field_geolocation_address[LANGUAGE_NONE][0]['data'] = serialize($address_data);
+    }
+    else {
+      return services_error(t('Co-ordinates does not exist.'),406);
+    }
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _create_ask_the_expert($node) {
+  $address = '';
+  $node = _services_arg_value($node, 'node');
+  
+  $nodeObj = new StdClass();
+  $nodeObj->type = 'ask_the_expert';
+  $nodeObj->status = 1;
+  $nodeObj->language = LANGUAGE_NONE;
+  if(isset($node['uid']) && is_numeric($node['uid'])) {
+    $user = user_load($node['uid']);
+    $nodeObj->uid = $node['uid'];
+  } else {
+    return services_error(t('User id does not exist.'),406);
+  }
+
+  if(isset($node['question']) && !empty($node['question'])) {
+    $nodeObj->title = $node['question'];
+  } else {
+    return services_error(t('Question does not exist.'),406);
+  }
+
+  if(isset($node['ask_privately']) && is_numeric($node['ask_privately'])) {
+    $nodeObj->field_ask_privately[LANGUAGE_NONE][0]['value'] = $node['ask_privately'];
+  } else {
+    return services_error(t('Ask Privately does not exist.'),406);
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _create_internship($node) {
+  $node = _services_arg_value($node, 'node');
+  
+  $nodeObj = new StdClass();
+  $nodeObj->type = 'internship';
+  $nodeObj->status = 1;
+  $nodeObj->language = LANGUAGE_NONE;
+  if(isset($node['uid']) && is_numeric($node['uid'])) {
+    $user = user_load($node['uid']);
+    $nodeObj->uid = $node['uid'];
+  } else {
+    return services_error(t('User id is required.'),406);
+  }
+
+  $nodeObj->field_status[LANGUAGE_NONE][0]['value'] = 'Pending';
+
+  if(isset($node['title']) && !empty($node['title'])) {
+    $nodeObj->title = $node['title'];
+  } else {
+    return services_error(t('Internship Title is required.'),406);
+  }
+
+  if(isset($node['field_location']) && !empty($node['field_location'])) {
+    $nodeObj->field_location[LANGUAGE_NONE][0]['tid'] = $node['field_location'];
+  } else {
+    return services_error(t('Location field is required.'),406);
+  }
+
+  if(isset($node['field_no_of_positions']) && !empty($node['field_no_of_positions'])) {
+    $nodeObj->field_no_of_positions[LANGUAGE_NONE][0]['value'] = $node['field_no_of_positions'];
+  } else {
+    return services_error(t('No of Position field is required.'),406);
+  }
+
+  if(isset($node['field_role']) && !empty($node['field_role'])>0) {
+    $nodeObj->field_role[LANGUAGE_NONE][0]['tid'] = $node['field_role'];
+  } else {
+    return services_error(t('Role field is required.'),406);
+  }
+
+  if(isset($node['field_key_skills']) && count($node['field_key_skills'])>0) {
+    foreach ($node['field_key_skills'] as $skill_id) {
+      $nodeObj->field_key_skills[LANGUAGE_NONE][]['tid'] = $skill_id;
+    }
+  } else {
+    return services_error(t('Key Skills field is required.'),406);
+  }
+
+  if(isset($node['field_job_description']) && !empty($node['field_job_description'])) {
+    $nodeObj->field_job_description[LANGUAGE_NONE][0]['value'] = $node['field_job_description'];
+  } else {
+    return services_error(t('Job Description field is required.'),406);
+  }
+
+  if(isset($node['field_job_responsibilities']) && !empty($node['field_job_responsibilities'])) {
+    $nodeObj->field_job_responsibilities[LANGUAGE_NONE][0]['value'] = $node['field_job_responsibilities'];
+  } else {
+    return services_error(t('Job Responsibilities field is required.'),406);
+  }
+
+  if(isset($node['field_paid']) && in_array($node['field_paid'],array(0,1))) {
+    $nodeObj->field_paid[LANGUAGE_NONE][0]['value'] = $node['field_paid'];
+  } else {
+    return services_error(t('Paid field is required.'),406);
+  }
+
+  if(isset($node['field_stipend']) && !empty($node['field_stipend'])) {
+    $nodeObj->field_stipend[LANGUAGE_NONE][0]['value'] = $node['field_stipend'];
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _update_internship($nid, $node) {
+  $node = _services_arg_value($node, 'node');
+  
+  $nodeObj = node_load($nid);
+  if(isset($node['published']) && $node['published']<=1) {
+    $nodeObj->status = $node['published'];
+  }
+  else {
+    $nodeObj->status = 0;
+    $nodeObj->field_status[LANGUAGE_NONE][0]['value'] = 'Pending';
+
+    if(isset($node['title']) && !empty($node['title'])) {
+      $nodeObj->title = $node['title'];
+    } else {
+      return services_error(t('Internship Title is required.'),406);
+    }
+
+    if(isset($node['field_location']) && !empty($node['field_location'])) {
+      $nodeObj->field_location[LANGUAGE_NONE][0]['tid'] = $node['field_location'];
+    } else {
+      return services_error(t('Location field is required.'),406);
+    }
+
+    if(isset($node['field_no_of_positions']) && !empty($node['field_no_of_positions'])) {
+      $nodeObj->field_no_of_positions[LANGUAGE_NONE][0]['value'] = $node['field_no_of_positions'];
+    } else {
+      return services_error(t('No of Position field is required.'),406);
+    }
+
+    if(isset($node['field_role']) && !empty($node['field_role'])>0) {
+      $nodeObj->field_role[LANGUAGE_NONE][0]['tid'] = $node['field_role'];
+    } else {
+      return services_error(t('Role field is required.'),406);
+    }
+
+    if(isset($node['field_key_skills']) && count($node['field_key_skills'])>0) {
+      unset($nodeObj->field_key_skills);
+      foreach ($node['field_key_skills'] as $key => $skill_id) {
+        $nodeObj->field_key_skills[LANGUAGE_NONE][$key]['tid'] = $skill_id;
+      }
+    } else {
+      return services_error(t('Key Skills field is required.'),406);
+    }
+
+    if(isset($node['field_job_description']) && !empty($node['field_job_description'])) {
+      $nodeObj->field_job_description[LANGUAGE_NONE][0]['value'] = $node['field_job_description'];
+    } else {
+      return services_error(t('Job Description field is required.'),406);
+    }
+
+    if(isset($node['field_job_responsibilities']) && !empty($node['field_job_responsibilities'])) {
+      $nodeObj->field_job_responsibilities[LANGUAGE_NONE][0]['value'] = $node['field_job_responsibilities'];
+    } else {
+      return services_error(t('Job Responsibilities field is required.'),406);
+    }
+
+    if(isset($node['field_paid']) && in_array($node['field_paid'],array(0,1))) {
+      $nodeObj->field_paid[LANGUAGE_NONE][0]['value'] = $node['field_paid'];
+    } else {
+      return services_error(t('Paid field is required.'),406);
+    }
+
+    if(isset($node['field_stipend']) && !empty($node['field_stipend'])) {
+      $nodeObj->field_stipend[LANGUAGE_NONE][0]['value'] = $node['field_stipend'];
+    }
+  }
+
+  node_save($nodeObj);
+  return $nodeObj;
+}
+
+function _user_picture_attach_update($uid, $data) {
+  
+  if(is_numeric($uid)) {
+    if(isset($data['image']) && !empty($data['image'])) {
+      $user = user_load($uid);
+      $img_data = explode('data:image/', $data['image']);
+      $image = explode('base64,', $img_data[1]);
+      $img_ext = explode(';', $img_data[1]);
+
+      if(isset($img_ext[0]) && !empty($img_ext[0]) && isset($image[1]) && !empty($image[1])) {
+        $dir = 'public://pictures/'.time().'.'.$img_ext[0];
+        if (!$file_saved = file_save_data(base64_decode($image[1]), $dir)) {
+          return services_error(t("Could not write file to destination"), 406);
+        }
+        $edit['picture'] = $file_saved;
+        user_save($user, $edit);
+        return file_create_url($user->picture->uri);
+      }
+      else {
+        return services_error(t("Missing data the file upload can not be completed"), 406);
+      }
+    } else {
+      return services_error(t("Missing data the file upload can not be completed"), 406);
+    }
+  }
+  else {
+    return services_error(t("User id is missing"), 406);
+  }
+}
+
+function _get_today_poll($sid = 0, $uid = 0) {
+
+  $poll_detail = array();
+  $vote_count = 0;
+  
+  $query = db_select('node', 'n');
+  $query->join('poll', 'p', 'p.nid = n.nid');
+  $query->fields('n', array('title','nid'));
+  $query->condition('n.type', 'poll', '=');
+  $query->condition('p.active', 1, '=');
+  $query->orderBy('n.created', 'DESC');
+  $poll_detail = $query->execute()->fetchAssoc();
+
+  $query = db_select('poll_choice', 'pc');
+  $query->fields('pc', array('chtext','chid','chvotes'));
+  $query->condition('pc.nid', $poll_detail['nid'], '=');
+  $query->orderBy('pc.weight', 'ASC');
+  $poll_detail['option'] = $query->execute()->fetchAll();
+
+  foreach ($poll_detail['option'] as $votes) {
+    $vote_count += $votes->chvotes;
+  }
+
+  $poll_detail['total_votes'] = $vote_count;
+
+  $has_voted = _get_poll_vote_by_sid($sid, $poll_detail['nid'], $uid);
+  if(empty($has_voted)) {
+    $poll_detail['has_voted'] = 0;
+  }
+  else {
+    $poll_detail['has_voted'] = 1;
+  }
+
+  return $poll_detail;
+}
+
+function _get_poll_vote_by_sid($sid, $nid, $uid) {
+
+  $query = db_select('poll', 'p');
+  $query->join('poll_vote', 'pv', 'p.nid = pv.nid');
+  $query->fields('pv', array('chid'));
+  if($uid != 0) {
+    $query->condition('pv.uid', $uid, '=');
+  }
+  else {
+    $query->join('session_api', 'sa', 'pv.sid = sa.sid');
+    $query->condition('sa.session_id', $sid, '=');
+  }
+  $query->condition('pv.nid', $nid, '=');
+  $query->condition('p.active', 1, '=');
+  $poll_detail = $query->execute()->fetchAssoc();
+
+  return $poll_detail;
+}
+
+function _add_user_vote($chid, $data) {
+
+  if(is_numeric($chid)) {
+    $uid = (isset($data['uid']) && !empty($data['uid']))?$data['uid']:0;
+    if(isset($data['nid']) && is_numeric($data['nid'])) {
+      $poll_details = '';
+      if(isset($data['sid']) && !empty($data['sid'])) {
+        $poll_details = _get_poll_vote_by_sid($data['sid'], $data['nid'], $uid);
+      }
+
+      if(empty($poll_details)) {
+        $sid = session_api_get_sid();
+        db_insert('poll_vote')
+          ->fields(array(
+            'nid' => $data['nid'],
+            'chid' => $chid,
+            'uid' => $uid,
+            'hostname' => isset($data['host'])?$data['host']:'',
+            'timestamp' => REQUEST_TIME,
+            'sid' => (isset($_GET['mobile']) && $_GET['mobile']==1)?0:$sid,
+          ))
+          ->execute();
+
+        // Add one to the votes.
+        db_update('poll_choice')
+          ->expression('chvotes', 'chvotes + 1')
+          ->condition('chid', $chid)
+          ->execute();
+
+        return _get_today_poll($sid, $uid);
+      }
+      else {
+        return services_error(t("You have already voted for this poll"), 406);
+      }
+    }
+    else {
+      return services_error(t("Missing data: failed to add vote"), 406);
+    }
+  }
+  else {
+    return services_error(t("Please select one option to vote"), 406);
+  }
+
+}
+
+function _get_user_rating($nid, $uid) {
+  if(isset($nid) && is_numeric($nid) && isset($uid) && is_numeric($uid)) {
+
+    $query = db_select('votingapi_vote', 'vv');
+    $query->fields('vv', array('value'));
+    $query->condition('vv.entity_id', $nid, '=');
+    $query->condition('vv.uid', $uid, '=');
+    $rating = $query->execute()->fetchCol('value');
+
+    if(isset($rating[0]) && !empty($rating[0])) {
+      return $rating[0];
+    }
+  }
+  else {
+    return services_error(t("Please enter a proper data"), 406);
+  }
+}
+
+function _add_user_rating($data) {
+  if(isset($data['nid']) && is_numeric($data['nid']) && isset($data['uid']) && is_numeric($data['uid'])) {
+    $vote['entity_id'] = $data['nid'];
+    $vote['uid'] = $data['uid'];
+    $vote['value'] = ($data['rating'] * 100) / variable_get('reviews_rating_star_count', 5);
+    votingapi_set_votes($vote);
+    return $data;
+  }
+  else {
+    return services_error(t("Invalid data provided"), 406);
+  }
+  
+}
+
+function _get_user_review($nid, $uid) {
+  if(isset($nid) && is_numeric($nid) && isset($uid) && is_numeric($uid)) {
+
+    $query = db_select('reviews', 'r');
+    $query->fields('r', array('rid'));
+    $query->condition('r.nid', $nid, '=');
+    $query->condition('r.uid', $uid, '=');
+    $review_count = $query->execute()->rowCount();
+
+    if($review_count > 0) {
+      return services_error(t("You have already give us a review for this article"), 406);
+    }
+  }
+  else {
+    return services_error(t("Please enter a proper data"), 406);
+  }
+}
+
+function _add_user_review($data) {
+  if(isset($data['nid']) && is_numeric($data['nid']) && isset($data['uid']) && is_numeric($data['uid']) && isset($data['review']) && !empty($data['review'])) {
+
+    // get the node type to see if it is moderated or not
+    $node = node_load($data['nid']);
+    $status = in_array($node->type, array_filter(variable_get('reviews_moderate_content_types', ''))) ? 1 : 0;
+
+    $rating = array(
+      'value' => $data['review'], 
+      'format' => 'full_html'
+    );
+
+    $record   = array(
+      'nid' => $data['nid'],
+      'uid' => $data['uid'],
+      'review' => serialize($rating),
+      'status' => $status,
+      'created' => REQUEST_TIME,
+    );
+
+    if (isset($data['rating']) && is_numeric($data['rating'])) {
+      $record['rating'] = ($data['rating'] * 100) / variable_get('reviews_rating_star_count', 5);
+    }
+
+    $result = drupal_write_record('reviews', $record);
+
+    if ($result == SAVED_NEW) {
+      reviews_update_review_count_for_node($data['nid']);
+      //reviews_notify_admin($data['nid']);
+      return true;
+    }
+    else {
+      return services_error(t("There seems to have been a problem submitting your review. Please try again later"), 406);
+    }
+  }
+  else {
+    return services_error(t("Please enter a proper data"), 406);
+  }
+}
+
+function _get_user_rate_and_review($nid, $uid) {
+  $result = array();
+  if(isset($nid) && is_numeric($nid) && isset($uid) && is_numeric($uid)) {
+
+    $query = db_select('votingapi_vote', 'vv');
+    $query->fields('vv', array('value'));
+    $query->condition('vv.entity_id', $nid, '=');
+    $query->condition('vv.uid', $uid, '=');
+    $rating = $query->execute()->fetchCol('value');
+
+    if(isset($rating[0]) && !empty($rating[0])) {
+      $result['rate'] = $rating[0];
+    }
+    else {
+      $result['rate'] = '';
+    }
+
+    $query = db_select('reviews', 'r');
+    $query->fields('r', array('review','rating'));
+    $query->condition('r.nid', $nid, '=');
+    $query->condition('r.uid', $uid, '=');
+    $review = $query->execute()->fetchAll();
+
+    if(count($review) > 0) {
+      $feedback = unserialize($review[0]->review);
+      $result['feedback'] = array(
+        "rating" => $review[0]->rating,
+        "review" => $feedback['value'],
+      );
+    }
+    else {
+      $result['feedback'] = array(
+        "rating" => '',
+        "review" => '',
+      );;
+    }
+    return $result;
+  }
+  else {
+    return services_error(t("Please enter a proper data"), 406);
+  }
+}
+
+function _user_avatar_update($uid, $fid) {
+  if(is_numeric($uid)) {
+    if(is_numeric($fid)) {
+      if($file = file_load($fid)) {
+        $user = user_load($uid);
+        $user->picture = $file;
+        $edit['picture'] = $file;
+        user_save($user, $edit);
+        return file_create_url($user->picture->uri);
+      }
+      else {
+        return services_error(t("Invalid avatar"), 406);
+      }
+    } else {
+      return services_error(t("No avatar is selected"), 406);
+    }
+  }
+  else {
+    return services_error(t("User id is missing"), 406);
+  }
+}
+
+function _user_change_password($uid, $data) {
+
+  if(is_numeric($uid)) {
+    $user = user_load($uid);
+    if (!empty($user)) {
+      if(isset($data['old_pwd']) && !empty($data['old_pwd'])) {
+        module_load_include('inc', 'content', 'includes/password');
+
+        if(user_check_password($data['old_pwd'], $user)) {
+          $error = _password_policy_constraint_validate($data['new_pwd'], $user);
+          if ($error) {
+            return services_error(t('Your new password has not met the following requirement(s):') . '<ul><li>' . implode('</li><li>', $error) . '</li></ul>', 406);
+          }
+
+          $error = _password_policy_constraint_validate($data['cnf_pwd'], $user);
+          if ($error) {
+            return services_error(t('Your confirm password has not met the following requirement(s):') . '<ul><li>' . implode('</li><li>', $error) . '</li></ul>', 406);
+          }
+
+          if($data['new_pwd'] == $data['cnf_pwd']) {
+            $pwd = user_hash_password($data['new_pwd']);
+            db_update('users')
+              ->fields(array('pass' => $pwd))
+              ->condition('uid', $uid, '=')
+              ->execute();
+
+            return $user;
+          }
+          else {
+            return services_error(t("Password doesn't match"), 406);
+          }
+        }
+        else {
+          return services_error(t("Old password is incorrect"), 406);
+        }
+      } else {
+        return services_error(t("Old password is missing"), 406);
+      }
+    }
+    else {
+      return services_error(t('There is no user with ID @uid.', array('@uid' => $uid)), 406);
+    }
+  }
+  else {
+    return services_error(t("User id is missing"), 406);
+  }
+}
+
+function _user_create_password($timestamp, $uuid, $data) {
+  
+  if(isset($timestamp) && !empty($timestamp) && isset($uuid) && !empty($uuid)) {
+
+    $timeout = variable_get('user_password_reset_timeout', 86400);
+    $current = REQUEST_TIME;
+
+    if ($timestamp <= $current) {
+
+      if ($current - $timestamp > $timeout) {
+        return services_error(t('You have tried to use a one-time change password link that has expired. Please request a new one.'), 406);
+      }
+
+      $query = db_select('users', 'u');
+      $query->fields('u', array('uid'));
+      $query->condition('u.uuid', $uuid, '=');
+      $result = $query->execute()->fetchAssoc();
+
+      if(isset($result['uid']) && is_numeric($result['uid'])) {
+        module_load_include('inc', 'content', 'includes/password');
+
+        $user = user_load($result['uid']);
+
+        $error = _password_policy_constraint_validate($data['new_pwd'], $user);
+        if ($error) {
+          return services_error(t('Your new password has not met the following requirement(s):') . '<ul><li>' . implode('</li><li>', $error) . '</li></ul>', 406);
+        }
+
+        $error = _password_policy_constraint_validate($data['cnf_pwd'], $user);
+        if ($error) {
+          return services_error(t('Your confirm password has not met the following requirement(s):') . '<ul><li>' . implode('</li><li>', $error) . '</li></ul>', 406);
+        }
+
+        if($data['new_pwd'] == $data['cnf_pwd']) {
+          $pwd = user_hash_password($data['new_pwd']);
+          $user->pass = $pwd;
+          user_save($user);
+
+          return $user;
+        }
+        else {
+          return services_error(t("Password doesn't match"), 406);
+        }
+      }
+      else {
+        return services_error(t("Invalid token"), 406);
+      }
+    }
+    else {
+      return services_error(t("Invalid token"), 406);
+    }
+  }
+  else {
+    return services_error(t("Invalid token"), 406);
+  }
+}
+
+function _user_activate($uuid) {
+  if(isset($uuid) && !empty($uuid)) {
+
+    $query = db_select('users', 'u');
+    $query->fields('u', array('uid'));
+    $query->condition('u.uuid', $uuid, '=');
+    $result = $query->execute()->fetchAssoc();
+
+    if(isset($result['uid']) && is_numeric($result['uid'])) {
+      $updated = db_update('users')
+      ->fields(array('status' => '1',))
+      ->condition('uid', $result['uid'], '=')
+      ->execute();
+      if($updated == 1) {
+        $user = user_load($result['uid']);
+        return $user->roles;
+      }
+      else {
+        return services_error(t("Token expired"), 406);
+      }
+    }
+    else {
+      return services_error(t("Invalid token"), 406);
+    }
+  }
+  else {
+    return services_error(t("Invalid token"), 406);
+  }
+}
+
+/**
+ * Access check callback for user resource.
+ */
+function _user_update_access($args = array()) {
+
+  if (isset($args)) {
+    $account = user_load($args);
+    $args = _services_access_value($args, array('account', 'data'));
+  }
+
+  global $user;
+
+  return ($user->uid == $account->uid || user_access('administer users'));
+}
+
+/*
+* Implement hook_token_info().
+*/
+function services_custom_token_info(){
+  $info['tokens']['user']['custom-one-time-login-url'] = array(
+    'name' => t('Custom One-time login URL'),
+    'description' => t('The URL of the one-time login page for the user account.'),
+  );
+
+  $info['tokens']['user']['custom-one-time-change-password-url'] = array(
+    'name' => t('Custom One-time Change Password URL'),
+    'description' => t('The URL of the one-time change password page for the user account.'),
+  );
+
+  $info['tokens']['user']['site-custom-url'] = array(
+    'name' => t('Custom Site URL'),
+    'description' => t('The URL is for front page.'),
+  );
+
+  $info['tokens']['user']['site-custom-logo'] = array(
+    'name' => t('Custom Site Logo URL'),
+    'description' => t('The URL is for logo.'),
+  );
+
+  $info['tokens']['site']['site-custom-url'] = array(
+    'name' => t('Custom Site URL'),
+    'description' => t('The URL is for front page.'),
+  );
+
+  $info['tokens']['site']['site-custom-logo'] = array(
+    'name' => t('Custom Site Logo URL'),
+    'description' => t('The URL is for logo.'),
+  );
+  return $info;
+}
+
+/**
+* Implements hook_tokens().
+*/
+function services_custom_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  $replacements = array();
+  if($type = 'user' && !empty($data['user'])) {
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'custom-one-time-login-url':
+          $replacements[$original] = FRONT_PAGE_PATH.'/user/validate/';
+          break;
+
+        case 'custom-one-time-change-password-url':
+          $replacements[$original] = FRONT_PAGE_PATH.'/user/password/';
+          break;
+
+        case 'site-custom-url':
+          $replacements[$original] = FRONT_PAGE_PATH;
+          break;
+
+        case 'site-custom-logo':
+          $replacements[$original] = FRONT_PAGE_PATH.'/img/loop-logo.png';
+          break;
+      }
+    }
+  }
+
+  if($type = 'site') {
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'site-custom-url':
+          $replacements[$original] = FRONT_PAGE_PATH;
+          break;
+
+        case 'site-custom-logo':
+          $replacements[$original] = FRONT_PAGE_PATH.'/img/loop-logo.png';
+          break;
+      }
+    }
+  }
+
+  return $replacements;
+}

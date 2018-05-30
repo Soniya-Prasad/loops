@@ -1,0 +1,271 @@
+<?php
+/**
+ * Implements hook_permission().
+ */ 
+function loop_club_service_permission() {
+  return array(
+    'access loop club' => array(
+      'title' => t('Access Loop Club'),
+      'description' => t('can access loop club.'),
+    ),
+    'administer mailer' => array(
+      'title' => t('Access Loop Club Mailer'),
+      'description' => t('can access loop club mailer.'),
+    ),
+  );
+}
+/**
+ * Implements hook_services_resources().
+ */
+function loop_club_service_services_resources() {
+  $api = array(
+    'create_group' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create Group', 
+          'callback' => 'loop_club_service_resource_create_group',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'set_group_admin' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Set Admin for group', 
+          'callback' => 'loop_club_service_resource_set_group_admin',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group admin data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'fetch_my_group' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Retrieve My Group',
+          'callback' => 'loop_club_service_resource_my_group_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group admin data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'fetch_group' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve a group detail',
+          'callback' => 'loop_club_service_resource_group_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the group to retrieve.',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'fetch_topics' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve a topic detail',
+          'callback' => 'loop_club_service_resource_group_topics_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the group to retrieve.',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'create_topic' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create Group Topic', 
+          'callback' => 'loop_club_service_resource_create_group_topic',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'create_comment' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create Comment', 
+          'callback' => 'loop_club_service_resource_create_comment',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'delete_group' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Delete Group', 
+          'callback' => 'loop_club_service_resource_delete_group',
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+          'access arguments' => array('access loop club'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The group data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'fetch_admin_group' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve admin group',
+          'callback' => 'loop_club_service_resource_admin_group_retrieve',
+          'access arguments' => array('access loop club'),
+          'file' => array('type' => 'inc', 'module' => 'loop_club_service', 'name' => 'resources/loop_club_resource'),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+/**
+ * Implements hook_menu().
+ */
+function loop_club_service_menu() {
+  $items = array();
+  $items['admin/loop-club/mailer/setting']=array(
+		'title'=> t('Manage Loop Club Mailer'),
+		'description' => 'Manage Loop Club form mailer',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('_loop_club_service_email_setting_form'),
+		'access arguments' => array('administer mailer'),
+		'type' => MENU_LOCAL_TASK,
+	);
+  return $items;
+}
+function _loop_club_service_email_setting_form($form,$form_state) {
+  $form['email_mailer_add_group'] = array(
+  	'#type' => 'fieldset',
+  	'#title' => t('Add Participants Mailer'),
+  	'#collapsible' => TRUE,
+  	'#collapsed' => FALSE,
+  	'#description' => t('Add Participants mailer format.'),
+  	'#group' => 'email',
+	);
+	$form['email_mailer_add_group']['loop_club_add_emailer_subject'] = array(
+  	'#type' => 'textfield',
+  	'#title' => t('Subject'),
+  	'#default_value' => variable_get('loop_club_add_emailer_subject'),
+  	'#maxlength' => 180,
+	);
+	$form['email_mailer_add_group']['loop_club_add_emailer_body'] = array(
+  	'#type' => 'textarea',
+  	'#title' => t('Body'),
+  	'#default_value' => variable_get('loop_club_add_emailer_body'),
+  	'#rows' => 15,
+	);
+  $form['email_mailer_delete_group'] = array(
+  	'#type' => 'fieldset',
+  	'#title' => t('Delete Group Mailer'),
+  	'#collapsible' => TRUE,
+  	'#collapsed' => FALSE,
+  	'#description' => t('Delete group mailer format.'),
+  	'#group' => 'email',
+	);
+	$form['email_mailer_delete_group']['loop_club_delete_emailer_subject'] = array(
+  	'#type' => 'textfield',
+  	'#title' => t('Subject'),
+  	'#default_value' => variable_get('loop_club_delete_emailer_subject'),
+  	'#maxlength' => 180,
+	);
+	$form['email_mailer_delete_group']['loop_club_delete_emailer_body'] = array(
+  	'#type' => 'textarea',
+  	'#title' => t('Body'),
+  	'#default_value' => variable_get('loop_club_delete_emailer_body'),
+  	'#rows' => 15,
+	);
+  return system_settings_form($form);
+}
+/**
+ * Implements hook_mail();
+ */
+function loop_club_service_mail($key, &$message, $params) {
+  $group_name = $params['group_name'];
+  $search_replace_string = array(
+    '!group_name' => $group_name,
+    '!site_url' => variable_get('front_end_url'),
+  );
+  if($key == 'loop_club_add') {
+    $mail_subject = variable_get('loop_club_add_emailer_subject');
+    $mail_body    = variable_get('loop_club_add_emailer_body');
+    $message['subject'] = t($mail_subject,$search_replace_string);
+    $message['body'][] = t($mail_body,$search_replace_string);; 
+    if (isset($params['headers']) && is_array($params['headers'])) {   
+      $message['headers'] += $params['headers'];
+    }
+  }else if($key == 'loop_club_delete') {
+    $mail_subject = variable_get('loop_club_delete_emailer_subject');
+    $mail_body    = variable_get('loop_club_delete_emailer_body');
+    $message['subject'] = t($mail_subject,$search_replace_string);
+    $message['body'][] = t($mail_body,$search_replace_string);; 
+    if (isset($params['headers']) && is_array($params['headers'])) {   
+      $message['headers'] += $params['headers'];
+    }
+  }
+}

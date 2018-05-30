@@ -1,0 +1,214 @@
+<?php
+
+/**
+ * The main file for quizfileupload.
+ *
+ * @file
+ */
+
+/**
+ * define default allowed extensions
+ */
+define('QUIZFILEUPLOAD_DEFAULT_EXTENSIONS', 'png pdf odf doc docx');
+
+/**
+ * Implements hook_help().
+ */
+function quizfileupload_help($path, $args) {
+  if ($path == 'admin/help#quizfileupload') {
+    return t('This module provides a fileupload choice question type for Quiz.');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function quizfileupload_menu() {
+  $items['admin/quiz/reports/score-fileupload'] = array(
+    'title' => 'Score fileupload questions',
+    'description' => 'Score the answers from quizzes that use fileupload questions.',
+    'page callback' => 'fileupload_view_unscored',
+    'access arguments' => array('score any quiz', 'score own quiz', 'score taken quiz answer'),
+    'access callback' => 'quiz_access_multi_or',
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'fileupload.admin.inc',
+  );
+  // Pass vid and rid to this path.
+  $items['admin/quiz/reports/score-fileupload/%/%'] = array(
+    'title' => 'Score fileupload response',
+    'description' => 'Score a response to a fileupload question.',
+    'page callback' => 'fileupload_edit_score',
+    'page arguments' => array(4, 5),
+    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array(4, 5),
+    'access callback' => 'quiz_question_access_to_score',
+    'file' => 'fileupload.admin.inc'
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_quiz_question_info().
+ */
+function quizfileupload_quiz_question_info() {
+  return array(
+    'quizfileupload' => array(
+      'name' => t('Fileupload question'),
+      'description' => t('This provides fileupload questions for use by the Quiz module.'),
+      'question provider' => 'QuizfileuploadQuestion',
+      'response provider' => 'QuizfileuploadResponse',
+      'module' => 'quiz_question', // All wrapper functions are in that module.
+    ),
+  );
+}
+
+/**
+ * Implements hook_quiz_question_config().
+ */
+function quizfileupload_quiz_question_config() {
+  $form['quizfileupload_default_max_score'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default max score'),
+    '#required' => TRUE,
+    '#default_value' => variable_get('quizfileupload_default_score', 1),
+  );
+  $form['quizfileupload_default_extensions'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Allowed extension'),
+    '#description' => t('Enter the allowed file extensions seperated by a space.'),
+    '#default_value' => variable_get('quizfileupload_default_extensions', QUIZFILEUPLOAD_DEFAULT_EXTENSIONS),
+    '#required' => TRUE,
+  );
+  $form['quizfileupload_upload_location'] = array(
+    '#type' => 'select',
+    '#title' => t('Upload location'),
+    '#required' => TRUE,
+    '#options' => drupal_map_assoc(array_keys(file_get_stream_wrappers())),
+    '#default_value' => variable_get('quizfileupload_upload_location', 'public'),
+  );
+  $form['#validate'][] = 'quizfileupload_config_validate';
+  return $form;
+}
+
+/**
+ * Validate the quizfileupload config form values
+ */
+function quizfileupload_config_validate($form, $form_state) {
+  if ($form_state['values']['quizfileupload_default_max_score'] <= 0) {
+    form_set_error('quizfileupload_default_max_score', t('The default max score must be greater than 0'));
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function quizfileupload_theme($existing, $type, $theme, $path) {
+  $module_path = drupal_get_path('module', 'quizfileupload');
+  return array(
+    'quizfileupload_view_unscored' => array(
+      'variables' => array('unscored' => array()),
+      'path' => $module_path . '/theme',
+      'file' => 'quizfileupload.theme.inc',
+    ),
+    'quizfileupload_response_form' => array(
+      'render element' => 'form',
+      'path' => $module_path . '/theme',
+      'file' => 'quizfileupload.theme.inc',
+    ),
+    'quizfileupload_user_answer' => array(
+      'variables' => array('answer' => NULL, 'correct' => NULL),
+      'path' => $module_path . '/theme',
+      'file' => 'quizfileupload.theme.inc',
+    ),
+    'quizfileupload_answering_form' => array(
+      'render element' => 'form',
+      'path' => $module_path . '/theme',
+      'template' => 'quizfileupload-answer-answering-form',
+    ),
+  );
+}
+
+/**
+ * Set a score for a quizfileupload question.
+ *
+ * This stores a score for a fileupload question and marks that question as having been evaluated.
+ * The function updates all of the necessary data sources so that the individual answer results should be
+ * reflected in the total scoring table.
+ */
+function quizfileupload_score_an_answer($values, $update_total = TRUE) {
+  $nid = $values['nid'];
+  $vid = $values['vid'];
+  $result_id = $values['result_id'];
+  $score = $values['score'];
+  $answer_feedback = $values['answer_feedback'];
+  $quiz = $values['quiz'];
+
+  $question_node = node_load($nid, $vid);
+  $quiz_question_response = _quiz_question_response_get_instance($result_id, $question_node);
+  $ratio = $quiz_question_response->getWeightedRatio();
+
+  db_update('quiz_fileupload_user_answers')
+    ->fields(array(
+      'score' => $score / $ratio,
+      'is_evaluated' => 1,
+      'answer_feedback' => empty($answer_feedback['value']) ? '' : $answer_feedback['value'],
+      'answer_feedback_format' => empty($answer_feedback['format']) ? '' : $answer_feedback['format'],
+    ))
+    ->condition('result_answer_id', $quiz_question_response->result_answer_id, '=')
+    ->execute();
+
+  // Now the user data has been updated. We also need to update the data in the quiz tables.
+  $quiz_result_answer = entity_load_single('quiz_result_answer', $quiz_question_response->result_answer_id);
+  $quiz_result_answer->points_awarded = $score;
+  $quiz_result_answer->is_correct = $quiz_question_response->isCorrect();
+  $quiz_result_answer->save();
+
+  // Third, we update the main quiz results table
+  if ($update_total) {
+    quiz_update_total_score($quiz, $result_id);
+  }
+}
+
+/**
+ * Submit the result report for quizfileupload
+ */
+function quizfileupload_report_submit($values) {
+  quizfileupload_score_an_answer($values, FALSE);
+}
+
+/**
+ * Markup function to show the file on the result screen
+ */
+function quiz_file_markup($fid) {
+  if (!empty($fid) && is_numeric($fid)) {
+    // image check
+    $file = file_load($fid);
+    $errors = file_validate_is_image($file);
+
+    // not image
+    if (count($errors)) {
+      return l($file->filename, file_create_url($file->uri));
+    }
+    // image, we use thumbnail
+    else {
+      $variables['item'] = array(
+        'uri' => $file->uri,
+        'alt' => '',
+        'title' => $file->filename
+      );
+      $variables['path'] = array(
+        'path' => file_create_url($file->uri),
+        'options' => array(
+          'html' => TRUE
+        )
+      );
+      $variables['image_style'] = 'large';
+      return theme('image_formatter', $variables);
+    }
+  }
+  // no file
+  else {
+    return t('n/a');
+  }
+}

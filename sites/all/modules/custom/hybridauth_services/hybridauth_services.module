@@ -1,0 +1,549 @@
+<?php
+/**
+ * @file
+ * Main file for the HybridAuth services module.
+ */
+
+/**
+ * Implements hook_services_resources().
+ */
+function hybridauth_services_services_resources() {
+  $resources = array(
+    'hybridauth' => array(
+      'actions' => array(
+        'register' => array(
+          'help' => t('Register user with hybridauth.'),
+          'callback' => '_hybridauth_services_register',
+          'args' => array(
+            array(
+              'name' => 'user_profile',
+              'type' => 'array',
+              'description' => 'The profile object to register.',
+              'optional' => FALSE,
+              'source' => 'data'
+            ),
+          ),
+          'access callback' => 'services_access_menu',
+        ),
+        'login' => array(
+          'help' => t('Login with hybridauth account.'),
+          'callback' => '_hybridauth_services_login',
+          'args' => array(
+            array(
+              'name' => 'user_profile',
+              'type' => 'array',
+              'description' => 'The profile object to login.',
+              'optional' => FALSE,
+              'source' => 'data'
+            ),
+          ),
+          'access callback' => 'services_access_menu',
+        ),
+        'profile_exists' => array(
+          'help' => t('Check if hybridauth profile already exists.'),
+          'callback' => '_hybridauth_services_profile_exists',
+          'args' => array(
+            array(
+              'name' => 'user_profile',
+              'type' => 'array',
+              'description' => 'The profile object to check.',
+              'optional' => FALSE,
+              'source' => 'data'
+            ),
+          ),
+          'access callback' => 'services_access_menu',
+        ),
+        'app_login' => array(
+          'help' => t('Login with hybridauth account by app.'),
+          'callback' => '_app_hybridauth_services_login',
+          'access callback' => 'services_access_menu',
+          'args' => array(
+            array(
+              'name' => 'user_profile',
+              'type' => 'array',
+              'description' => 'The profile object to login.',
+              'optional' => FALSE,
+              'source' => 'data'
+            ),
+          ),
+        ),
+      ),
+    ),  
+  );
+
+  return $resources;
+}
+
+/**
+ * Handle the Drupal registration.
+ */
+function _hybridauth_services_register($user_profile) {
+  module_load_include('inc', 'hybridauth', 'hybridauth.pages');
+
+  if (isset($user_profile['profile']) && !empty($user_profile['profile'])) {
+    $data = $user_profile['profile'];
+    if ($identity = _hybridauth_identity_load($data)) {
+      // Check if user is blocked.
+      if ($account = _hybridauth_user_is_blocked_by_uid($identity['uid'])) {
+        return services_error(t('The username %name has not been activated or is blocked.', array('%name' => $account->name)), 406);
+      }
+      // Check for email verification timestamp.
+      elseif (!_hybridauth_user_login_access_by_uid($identity['uid'])) {
+        $data = unserialize($identity['data']);
+        $message = t('You need to verify your e-mail address - !email.', array('!email' => $data['email']));
+        $message .= t('A welcome message with further instructions has been sent to your e-mail address.');
+        _hybridauth_mail_notify('hybridauth_email_verification', user_load($identity['uid']));
+        return services_error($message, 406);
+      }
+      else {
+        return services_error(t('You are already registered.'), 406);
+      }
+    }
+    // Handle duplicate email addresses.
+    elseif (variable_get('hybridauth_duplicate_emails', 1) && !empty($data['email']) && $account = user_load_by_mail($data['email'])) {
+      // Add identity to existing account, only if emailVerified.
+      if (variable_get('hybridauth_duplicate_emails', 1) == 2) {
+        if (_hybridauth_user_is_blocked_by_uid($account->uid)) {
+          return services_error(t('The username %name has not been activated or is blocked.', array('%name' => $account->name)), 406);
+        }
+        if (isset($data['pass'])) {
+          unset($data['pass']);
+        }
+        _hybridauth_identity_save($data, $account->uid);
+        _hybridauth_invoke_hooks('hybridauth_identity_added', $account, $data);
+        //return (isset($account)) ? $account : "";
+      }
+      // Block registration - if (variable_get('hybridauth_duplicate_emails', 1) == 1) or
+      // (variable_get('hybridauth_duplicate_emails', 1) == 2 && $data['email'] != $data['emailVerified'])
+      else {
+        $message = t('You are trying to login with email address of another user.');
+        if (!empty($account->data['hybridauth'])) {
+          $providers = hybridauth_providers_list();
+          $message .= t('If you are completely sure it is your email address, try to login through %provider.',
+            array('%provider' => $providers[$account->data['hybridauth']['provider']]));
+        }
+        else {
+          $message .= t('If you are completely sure it is your email address, try to login using your username and password.');
+        }
+        return services_error($message, 406);
+      }
+    }
+    // Create new user account.
+    else {
+      // Visitors can create accounts.
+      if ((variable_get('hybridauth_register', 0) == 0 && variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL))
+        || variable_get('hybridauth_register', 0) == 1 || variable_get('hybridauth_register', 0) == 2) {
+        _hybridauth_invoke_hooks('hybridauth_user_preinsert', $user, $data);
+
+        // As we have already checked for the additional info we can unset the plaintext $data['pass'] here.
+        if (isset($data['pass'])) {
+          $user_password = $data['pass'];
+          unset($data['pass']);
+        }
+
+        // TODO: remove this global if possible.
+        global $_hybridauth_data;
+        $_hybridauth_data = $data;
+        // Register this new user.
+        if(isset($data['name'])){
+          $fullname = $data['name'];
+        } 
+        
+        $userinfo = array(
+          'name' => $data['email'],
+          'pass' => empty($user_password) ? user_password() : $user_password,
+          'init' => $data['email'],
+          'status' => 1,
+          'access' => REQUEST_TIME,
+          'mail' => $data['email'],
+          'field_full_name' => array('und' => array(0=>array('value'=>$fullname))),
+          'field_theme_color' => array('und' => array(0=>array('value'=>variable_get('user_default_theme')))),
+          'data' => array('hybridauth' => $data),
+        );
+
+        if(isset($data['gender']) && !empty($data['gender'])) {
+        	$userinfo['field_gender'] = array('und' => array(0=>array('value'=>$data['gender'])));
+        }
+
+        // Invoke hook_hybridauth_userinfo_alter().
+        drupal_alter('hybridauth_userinfo', $userinfo, $data);
+
+        /*$admin_approval_required = FALSE;
+        // Admin approval is required.
+        if ((variable_get('hybridauth_register', 0) == 0 && variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL) == USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)
+          || variable_get('hybridauth_register', 0) == 2) {
+          $userinfo['status'] = 0;
+          $admin_approval_required = TRUE;
+        }*/
+        if(isset($data['uid']) && is_numeric($data['uid'])) {
+          $account = user_load($data['uid']);
+          if (isset($account->roles[6])) {
+            unset($account->roles[6]);
+            $userinfo['roles'] = $account->roles;
+          }
+          $account = user_save($account, $userinfo);
+        }
+        else {
+          $account = user_save(drupal_anonymous_user(), $userinfo);
+        }
+        
+        // Terminate if an error occurred during user_save().
+        if (!$account) {
+          services_error(t('Error saving user account.'), 406);
+        }
+        _hybridauth_invoke_hooks('hybridauth_user_insert', $account, $data);
+        _hybridauth_identity_save($data, $account->uid);
+        _hybridauth_invoke_hooks('hybridauth_identity_added', $account, $data);
+
+        $user_save_trigger = FALSE;
+        $user_email_verify_trigger = FALSE;
+
+        // Save user picture.
+        if (variable_get('user_pictures', 0) && variable_get('hybridauth_pictures', 1)) {
+          $photo_url = $data['photoURL'];
+          if (valid_url($photo_url)) {
+            $photo = drupal_http_request($photo_url);
+            if (isset($photo->error)) {
+              watchdog('hybridauth', 'Error while executing drupal_http_request() to %url: %error.', array('%url' => $photo_url, '%error' => $photo->error), WATCHDOG_ERROR);
+            }
+            else {
+              if ($file = file_save_data($photo->data)) {
+                // To make user_save() to process the file and move it.
+                $file->status = 0;
+                $edit['picture'] = $file;
+                $user_save_trigger = TRUE;
+              }
+              else {
+                watchdog('hybridauth', 'Failed to save user image from url %url.', array('%url' => $photo_url), WATCHDOG_ERROR);
+              }
+            }
+          }
+        }
+        // Admin approval is required.
+        if ($admin_approval_required) {
+          _user_mail_notify('register_pending_approval', $account);
+        }
+        // Email verification is required.
+        elseif (!empty($data['email']) && $data['email'] != $data['emailVerified']
+          && ((!variable_get('hybridauth_email_verification', 0) && variable_get('user_email_verification', TRUE)) || variable_get('hybridauth_email_verification', 0) == 1)) {
+          // Dries birthday timestamp, Nov 19, 1978 = 280281600 :).
+          $edit['login'] = 280281600;
+          $user_save_trigger = TRUE;
+          $user_email_verify_trigger = TRUE;
+        }
+
+        if ($user_save_trigger) {
+          // Hack to remove one notice from Legal module.
+          if (module_exists('legal')) {
+            $edit['legal_accept'] = NULL;
+          }
+          $account = user_save($account, $edit);
+        }
+        if ($user_email_verify_trigger) {
+          _hybridauth_mail_notify('hybridauth_email_verification', $account);
+        }
+      }
+      // Visitors can't register accounts through HybridAuth.
+      elseif (variable_get('hybridauth_register', 0) == 3) {
+        return services_error(t('New account registration is not allowed.'), 406);
+      }
+      // Only admin can create accounts.
+      else {
+        return services_error(t('Only site administrators can create new user accounts.'), 406);
+      }
+    }
+  }
+  if ($account->uid) {
+    global $user;
+    $form_state['uid'] = $account->uid;
+    user_login_submit(array(), $form_state);
+    _hybridauth_invoke_hooks('hybridauth_user_login', $user, $data);
+    $return = new stdClass();
+    $return->sessid = session_id();
+    $return->session_name = session_name();
+    $return->token = drupal_get_token('services');
+    services_remove_user_data($account);
+    $return->user = $account;
+    return $return;
+  }
+  return FALSE;
+}
+
+/**
+ * Handle the Drupal login.
+ */
+function _hybridauth_services_login($user_profile) {
+  global $user;
+  if (isset($user_profile['profile']) && !empty($user_profile['profile'])) {
+    $data = $user_profile['profile'];
+    if ($identity = _hybridauth_identity_load($data)) {
+      if (isset($identity['uid']) && !empty($identity['uid'])) {
+        if ($account = _hybridauth_user_is_blocked_by_uid($identity['uid'])) {
+          return services_error(t('The username %name has not been activated or is blocked.', array('%name' => $account->name)), 406);
+        }
+        // Check for email verification timestamp.
+        elseif (!_hybridauth_user_login_access_by_uid($identity['uid'])) {
+          $data = unserialize($identity['data']);
+          $message = t('You need to verify your e-mail address - !email.', array('!email' => $data['email']));
+          $message .= t('A welcome message with further instructions has been sent to your e-mail address.');
+          _hybridauth_mail_notify('hybridauth_email_verification', user_load($identity['uid']));
+          return services_error($message, 406);
+        }
+        else {
+          $form_state['uid'] = $identity['uid'];
+          user_login_submit(array(), $form_state);
+          _hybridauth_invoke_hooks('hybridauth_user_login', $user, $data);
+
+          if ($user->uid) {
+            $return = new stdClass();
+            $return->sessid = session_id();
+            $return->session_name = session_name();
+            $return->token = drupal_get_token('services');
+
+            $account = clone $user;
+            services_remove_user_data($account);
+            $return->user = $account;
+
+            return $return;
+          }
+
+          return FALSE;
+        }
+      }
+      return services_error(t('User does not exist.'), 406);
+    }
+    else {
+      return services_error(t('Account does not exist.'), 406);
+    }
+  }
+
+  return FALSE;
+}
+
+/**
+ * Checks if a profile exists.
+ */
+function _hybridauth_services_profile_exists($user_profile) {
+  $uid = 0;
+  $return = new stdClass();
+  if (isset($user_profile['profile']) && !empty($user_profile['profile'])) {
+    $data = $user_profile['profile'];
+    if (isset($data['email']) && isset($data['provider'])) {
+      if (!empty($data['email']) && !empty($data['provider'])) {
+        $query=db_select('hybridauth_identity','h');
+        $query->innerJoin('users','u','h.uid = u.uid');
+        $query->condition('h.provider', $data['provider'])
+              ->condition('u.mail', $data['email'])
+              ->fields('h',array('uid'));
+       $uid= $query->execute()->fetchField();
+      }
+    } 
+    // if(!isset($uid) || empty($uid)) {
+    //   $classic_login_uid = db_select('users','u')->fields('u',array('uid'))->condition('u.mail', $data['email'])->execute()->fetchField();
+    //   if($classic_login_uid > 0) {
+    //     $return->profile_exists = 'available';
+    //     return $return;        
+    //   }
+    // }
+    
+    $return->profile_exists = ($uid > 0) ? 'login' : 'register';
+    return $return;
+  }
+}
+
+
+/**
+ * Handle the Drupal registration.
+ */
+function _app_hybridauth_services_login($user_profile) {
+  module_load_include('inc', 'hybridauth', 'hybridauth.pages');
+
+  if (isset($user_profile['profile']) && !empty($user_profile['profile'])) {
+    $data = $user_profile['profile'];
+    if ($identity = _hybridauth_identity_load($data)) {
+      // Check if user is blocked.
+      if ($account = _hybridauth_user_is_blocked_by_uid($identity['uid'])) {
+        return services_error(t('The username %name has not been activated or is blocked.', array('%name' => $account->name)), 406);
+      }
+      // Check for email verification timestamp.
+      elseif (!_hybridauth_user_login_access_by_uid($identity['uid'])) {
+        $data = unserialize($identity['data']);
+        $message = t('You need to verify your e-mail address - !email.', array('!email' => $data['email']));
+        $message .= t('A welcome message with further instructions has been sent to your e-mail address.');
+        _hybridauth_mail_notify('hybridauth_email_verification', user_load($identity['uid']));
+        return services_error($message, 406);
+      }
+      else {
+        $account = user_load($identity['uid']);
+      }
+    }
+    // Handle duplicate email addresses.
+    elseif (variable_get('hybridauth_duplicate_emails', 1) && !empty($data['email']) && $account = user_load_by_mail($data['email'])) {
+      // Add identity to existing account, only if emailVerified.
+      if (variable_get('hybridauth_duplicate_emails', 1) == 2) {
+        if (_hybridauth_user_is_blocked_by_uid($account->uid)) {
+          return services_error(t('The username %name has not been activated or is blocked.', array('%name' => $account->name)), 406);
+        }
+        if (isset($data['pass'])) {
+          unset($data['pass']);
+        }
+        _hybridauth_identity_save($data, $account->uid);
+        _hybridauth_invoke_hooks('hybridauth_identity_added', $account, $data);
+        //return (isset($account)) ? $account : "";
+      }
+      // Block registration - if (variable_get('hybridauth_duplicate_emails', 1) == 1) or
+      // (variable_get('hybridauth_duplicate_emails', 1) == 2 && $data['email'] != $data['emailVerified'])
+      else {
+        $message = t('You are trying to login with email address of another user.');
+        if (!empty($account->data['hybridauth'])) {
+          $providers = hybridauth_providers_list();
+          $message .= t('If you are completely sure it is your email address, try to login through %provider.',
+            array('%provider' => $providers[$account->data['hybridauth']['provider']]));
+        }
+        else {
+          $message .= t('If you are completely sure it is your email address, try to login using your username and password.');
+        }
+        return services_error($message, 406);
+      }
+    }
+    // Create new user account.
+    else {
+      // Visitors can create accounts.
+      if ((variable_get('hybridauth_register', 0) == 0 && variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL))
+        || variable_get('hybridauth_register', 0) == 1 || variable_get('hybridauth_register', 0) == 2) {
+        _hybridauth_invoke_hooks('hybridauth_user_preinsert', $user, $data);
+
+        // As we have already checked for the additional info we can unset the plaintext $data['pass'] here.
+        if (isset($data['pass'])) {
+          $user_password = $data['pass'];
+          unset($data['pass']);
+        }
+
+        // TODO: remove this global if possible.
+        global $_hybridauth_data;
+        $_hybridauth_data = $data;
+        // Register this new user.
+        if(isset($data['name'])){
+          $fullname = $data['name'];
+        } 
+        
+        $userinfo = array(
+          'name' => $data['email'],
+          'pass' => empty($user_password) ? user_password() : $user_password,
+          'init' => $data['email'],
+          'status' => 1,
+          'access' => REQUEST_TIME,
+          'mail' => $data['email'],
+          'field_full_name' => array('und' => array(0=>array('value'=>$fullname))),
+          'field_theme_color' => array('und' => array(0=>array('value'=>variable_get('user_default_theme')))),
+          'data' => array('hybridauth' => $data),
+        );
+
+        if(isset($data['gender']) && !empty($data['gender'])) {
+          $userinfo['field_gender'] = array('und' => array(0=>array('value'=>$data['gender'])));
+        }
+
+        // Invoke hook_hybridauth_userinfo_alter().
+        drupal_alter('hybridauth_userinfo', $userinfo, $data);
+
+        /*$admin_approval_required = FALSE;
+        // Admin approval is required.
+        if ((variable_get('hybridauth_register', 0) == 0 && variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL) == USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)
+          || variable_get('hybridauth_register', 0) == 2) {
+          $userinfo['status'] = 0;
+          $admin_approval_required = TRUE;
+        }*/
+        if(isset($data['uid']) && is_numeric($data['uid'])) {
+          $account = user_load($data['uid']);
+          if (isset($account->roles[6])) {
+            unset($account->roles[6]);
+            $userinfo['roles'] = $account->roles;
+          }
+          $account = user_save($account, $userinfo);
+        }
+        else {
+          $account = user_save(drupal_anonymous_user(), $userinfo);
+        }
+        
+        // Terminate if an error occurred during user_save().
+        if (!$account) {
+          services_error(t('Error saving user account.'), 406);
+        }
+        _hybridauth_invoke_hooks('hybridauth_user_insert', $account, $data);
+        _hybridauth_identity_save($data, $account->uid);
+        _hybridauth_invoke_hooks('hybridauth_identity_added', $account, $data);
+
+        $user_save_trigger = FALSE;
+        $user_email_verify_trigger = FALSE;
+
+        // Save user picture.
+        if (variable_get('user_pictures', 0) && variable_get('hybridauth_pictures', 1)) {
+          $photo_url = $data['photoURL'];
+          if (valid_url($photo_url)) {
+            $photo = drupal_http_request($photo_url);
+            if (isset($photo->error)) {
+              watchdog('hybridauth', 'Error while executing drupal_http_request() to %url: %error.', array('%url' => $photo_url, '%error' => $photo->error), WATCHDOG_ERROR);
+            }
+            else {
+              if ($file = file_save_data($photo->data)) {
+                // To make user_save() to process the file and move it.
+                $file->status = 0;
+                $edit['picture'] = $file;
+                $user_save_trigger = TRUE;
+              }
+              else {
+                watchdog('hybridauth', 'Failed to save user image from url %url.', array('%url' => $photo_url), WATCHDOG_ERROR);
+              }
+            }
+          }
+        }
+        // Admin approval is required.
+        if ($admin_approval_required) {
+          _user_mail_notify('register_pending_approval', $account);
+        }
+        // Email verification is required.
+        elseif (!empty($data['email']) && $data['email'] != $data['emailVerified']
+          && ((!variable_get('hybridauth_email_verification', 0) && variable_get('user_email_verification', TRUE)) || variable_get('hybridauth_email_verification', 0) == 1)) {
+          // Dries birthday timestamp, Nov 19, 1978 = 280281600 :).
+          $edit['login'] = 280281600;
+          $user_save_trigger = TRUE;
+          $user_email_verify_trigger = TRUE;
+        }
+
+        if ($user_save_trigger) {
+          // Hack to remove one notice from Legal module.
+          if (module_exists('legal')) {
+            $edit['legal_accept'] = NULL;
+          }
+          $account = user_save($account, $edit);
+        }
+        if ($user_email_verify_trigger) {
+          _hybridauth_mail_notify('hybridauth_email_verification', $account);
+        }
+      }
+      // Visitors can't register accounts through HybridAuth.
+      elseif (variable_get('hybridauth_register', 0) == 3) {
+        return services_error(t('New account registration is not allowed.'), 406);
+      }
+      // Only admin can create accounts.
+      else {
+        return services_error(t('Only site administrators can create new user accounts.'), 406);
+      }
+    }
+  }
+
+  if ($account->uid) {
+    global $user;
+    $form_state['uid'] = $account->uid;
+    user_login_submit(array(), $form_state);
+    _hybridauth_invoke_hooks('hybridauth_user_login', $user, $data);
+    $return = new stdClass();
+    $return->sessid = session_id();
+    $return->session_name = session_name();
+    $return->token = drupal_get_token('services');
+    services_remove_user_data($account);
+    $return->user = $account;
+    return $return;
+  }
+  return FALSE;
+}

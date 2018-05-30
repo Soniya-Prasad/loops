@@ -1,0 +1,213 @@
+<?php
+/**
+ * Implements of hook_services_resources().
+ */
+function user_category_preference_services_resources() {
+  $api = array(
+    'user_category_preference' => array(
+      'operations' => array(
+      	'retrieve' => array(
+          'help' => 'Retrieve a user category preference',
+          'callback' => '_user_preference_resource_retrieve',
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('view'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user category preference data to retrieve by user id.',
+              'source' => array('path' => '0'),
+              'optional' => TRUE,
+            ),
+          ),
+        ),
+
+        'update' => array(
+          'help' => 'Update a user category preference', 
+          'callback' => '_user_preference_resource_update',
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+          	array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user category preference data to update by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The user category preference data to create/update',
+              'type' => 'array',
+            ),
+          ),
+        ),
+
+        'delete' => array(
+          'help' => 'Deletes a user category preference',
+          'callback' => '_user_preference_resource_delete',
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('delete'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user category preference data to delete by user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+          	),
+          ),
+        ),
+      ),
+    ),
+    'all_categories' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve all categories',
+          'callback' => '_all_categories_retrieve',
+          'access arguments' => array('access content'),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+
+function _all_categories_retrieve() {
+  $i = 0;
+  $term_data = array();
+  $terms = taxonomy_get_tree(3,0,1);
+  
+  foreach ($terms as $key => $term) {
+    $term_detail = taxonomy_term_load($term->tid);
+    //print "<pre>"; print_r($term_detail); die;
+    if(isset($term_detail->field_term_status[LANGUAGE_NONE][0]['value']) && $term_detail->field_term_status[LANGUAGE_NONE][0]['value'] == 1){
+      $term_data[$i] = array(
+        'category_name' => $term_detail->name,
+        'category_tid' => $term_detail->tid,
+        'category_image' => (isset($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) ? file_create_url($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) : ''),
+        'category_color' => $term_detail->field_color[LANGUAGE_NONE][0]['rgb'],
+        'category_weight' => $term_detail->weight,
+        'category_active' => $term_detail->field_term_status[LANGUAGE_NONE][0]['value'],
+      );
+    
+
+      $child_term = taxonomy_get_tree(3,$term->tid);
+      foreach ($child_term as $key => $child_term) {
+        $child_term_detail = taxonomy_term_load($child_term->tid);
+        if(isset($child_term_detail->field_term_status[LANGUAGE_NONE][0]['value']) && $child_term_detail->field_term_status[LANGUAGE_NONE][0]['value'] == 1){
+          $term_data[$i]['child_terms'][] = array(
+            'category_name' => $child_term_detail->name,
+            'category_tid' => $child_term_detail->tid,
+            'category_image' => (isset($child_term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) ? file_create_url($child_term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) : ''),
+            'category_color' => $child_term_detail->field_color[LANGUAGE_NONE][0]['rgb'],
+            'category_weight' => $child_term_detail->weight,
+            'category_active' => $child_term_detail->field_term_status[LANGUAGE_NONE][0]['value'],
+          );
+        }
+      }
+      $i++;
+    }
+  }
+
+  return $term_data;
+}
+
+function _user_preference_resource_retrieve($uid) {
+
+	if(is_numeric($uid)) {
+
+    $i = 0;
+    $term_data = array();
+
+    $query = db_select('user_category_preference', 'ucp');
+    $query->fields('ucp', array('tid'));
+    $query->condition('ucp.uid', $uid, '=');
+    $query->orderBy('ucp.weight', 'ASC');
+    $terms = $query->execute()->fetchCol('tid');
+
+    if(count($terms) > 0) {
+      foreach ($terms as $tid) {
+        $term_detail = taxonomy_term_load($tid);
+        if(isset($term_detail->field_term_status[LANGUAGE_NONE][0]['value']) && $term_detail->field_term_status[LANGUAGE_NONE][0]['value'] == 1){
+	        $term_data[$i] = array(
+	          'category_name' => $term_detail->name,
+	          'category_tid' => $term_detail->tid,
+	          'category_image' => (isset($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) ? file_create_url($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) : ''),
+	          'category_color' => $term_detail->field_color[LANGUAGE_NONE][0]['rgb'],
+	          'category_weight' => $term_detail->weight,
+	        );
+	        $i++;
+    	}
+      }
+    }
+    else {
+      $terms = taxonomy_get_tree(3,0,1);
+      foreach ($terms as $key => $term) {
+        $term_detail = taxonomy_term_load($term->tid);
+        if(isset($term_detail->field_term_status[LANGUAGE_NONE][0]['value']) && $term_detail->field_term_status[LANGUAGE_NONE][0]['value'] == 1){
+	        $term_data[$i] = array(
+	          'category_name' => $term_detail->name,
+	          'category_tid' => $term_detail->tid,
+	          'category_image' => (isset($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) ? file_create_url($term_detail->field_category_image[LANGUAGE_NONE][0]['uri']) : ''),
+	          'category_color' => $term_detail->field_color[LANGUAGE_NONE][0]['rgb'],
+	          'category_weight' => $term_detail->weight,
+	        );
+	        $i++;
+    	}
+      }
+    }
+
+    return $term_data;
+	}
+  else {
+    return services_error(t("User id is invalid"), 406);
+  }
+}
+
+function _user_preference_resource_update($uid, $data) {
+
+	if(is_numeric($uid) && is_array($data)) {
+
+		$deleted = _user_preference_resource_delete($uid);
+
+		foreach ($data as $row) {
+			$id = db_insert('user_category_preference')
+				->fields(array(
+				'uid' => $uid,
+				'tid' => $row['tid'],
+				'weight' => $row['weight'],
+				))
+	    	->execute();
+		}
+
+		$return_data = _user_preference_resource_retrieve($uid);
+
+    return $return_data;
+	}
+  else {
+    return services_error(t("Either User id or data is invalid"), 406);
+  }
+
+	
+}
+
+function _user_preference_resource_delete($uid) {
+
+	if(is_numeric($uid)) {
+		$deleted = db_delete('user_category_preference')
+			->condition('uid', $uid)
+			->execute();
+
+    return TRUE;
+	}
+  else {
+    return services_error(t("User id is invalid"), 406);
+  }
+	
+}

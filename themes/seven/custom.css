@@ -1,0 +1,121 @@
+/* Custom css start */
+.page-node-add-propose-an-article .vertical-tabs-panes .form-item-promote,
+.page-node-add-propose-an-article .vertical-tabs-panes .form-item-sticky,
+.page-node-edit.node-type-propose-an-article .vertical-tabs-panes .form-item-promote,
+.page-node-edit.node-type-propose-an-article .vertical-tabs-panes .form-item-sticky,
+.page-node-add-photo-gallery .vertical-tabs-panes .form-item-promote,
+.page-node-add-photo-gallery .vertical-tabs-panes .form-item-sticky,
+.page-node-edit.node-type-photo-gallery .vertical-tabs-panes .form-item-promote,
+.page-node-edit.node-type-photo-gallery .vertical-tabs-panes .form-item-sticky,
+.page-node-add-video-gallery .vertical-tabs-panes .form-item-promote,
+.page-node-add-video-gallery .vertical-tabs-panes .form-item-sticky,
+.page-node-edit.node-type-video-gallery .vertical-tabs-panes .form-item-promote,
+.page-node-edit.node-type-video-gallery .vertical-tabs-panes .form-item-sticky {
+  display: none;
+}
+
+/*.page-node-add-article .vertical-tabs,
+.page-node-edit.node-type-article .vertical-tabs,*/
+.page-node-add-propose-an-article .vertical-tabs,
+.page-node-edit.node-type-propose-an-article .vertical-tabs,
+.page-node-add-photo-gallery .vertical-tabs,
+.page-node-edit.node-type-photo-gallery .vertical-tabs,
+.page-node-add-video-gallery .vertical-tabs,
+.page-node-edit.node-type-video-gallery .vertical-tabs {
+  height: 48px;
+}
+
+.page-node-add-student .vertical-tabs,
+.page-node-edit.node-type-student .vertical-tabs,
+.page-node-add-loop-staff .vertical-tabs,
+.page-node-edit.node-type-loop-staff .vertical-tabs,
+.page-node-add-expert .vertical-tabs,
+.page-node-edit.node-type-expert .vertical-tabs,
+.page-node-add-poll .vertical-tabs,
+.page-node-edit.node-type-poll .vertical-tabs,
+.page-node-add-advertisement .vertical-tabs,
+.page-node-edit.node-type-advertisement .vertical-tabs,
+.page-node-add-ask-the-expert .vertical-tabs,
+.page-node-edit.node-type-ask-the-expert .vertical-tabs {
+	display: none;
+}
+
+/*.page-node-add-propose-an-article .form-actions #edit-preview,
+.page-node-edit.node-type-photo-gallery .form-actions #edit-preview
+.page-node-add-photo-gallery .form-actions #edit-preview,
+.page-node-edit.node-type-photo-gallery .form-actions #edit-preview
+.page-node-add-video-gallery .form-actions #edit-preview,
+.page-node-edit.node-type-video-gallery .form-actions #edit-preview,
+.page-node-add-student .form-actions #edit-preview,
+.page-node-edit.node-type-student .form-actions #edit-preview,
+.page-node-add-loop-staff .form-actions #edit-preview,
+.page-node-edit.node-type-loop-staff .form-actions #edit-preview,
+.page-node-add-expert .form-actions #edit-preview,
+.page-node-edit.node-type-expert .form-actions #edit-preview,
+.page-node-add-poll .form-actions #edit-preview,
+.page-node-edit.node-type-poll .form-actions #edit-preview {
+	display: none;
+}*/
+
+#block-system-user-menu {
+    position: absolute;
+    right: 0;
+    top: -83px;
+}
+/* Custom css end */
+.not-logged-in.page-user .tabs.primary{
+ display:none;
+}
+
+.node-type-quiz .tabs.primary li:nth-child(2),
+.page-node-quiz .tabs.primary li:nth-child(2),
+.page-node-quiz-results .tabs.primary li:nth-child(2){display:none;}
+
+.node-type-quiz .tabs.primary li:nth-child(5),
+.page-node-quiz .tabs.primary li:nth-child(5),
+.page-node-quiz-results .tabs.primary li:nth-child(5){display:none;}
+
+.node-type-quiz .tabs.primary li:nth-child(4),
+.page-node-quiz .tabs.primary li:nth-child(4),
+.page-node-quiz-results .tabs.primary li:nth-child(4){display:none;}
+
+.node-type-quiz .tabs.primary li:nth-child(6),
+.page-node-quiz .tabs.primary li:nth-child(6),
+.page-node-quiz-results .tabs.primary li:nth-child(6){display:none;}
+
+.tabledrag-toggle-weight{display:none;}
+
+.form-item-answer-text-processing{display:none;}
+.form-item-feedback-value,.form-item-feedback-value ~.filter-wrapper,.form-item-feedback-value ~.description,.form-item-feedback-value ~.ckeditor_links{display:none!important;}
+.form-item-promote,.form-item-sticky{display:none;}
+fieldset[id*="-advanced"]{display:none;}
+fieldset[id*="-advanced--"]{display:none;}
+#multichoice-alternatives-table .form-type-checkbox{padding-right:10px;}
+.form-item-choice-random{display:none;}
+.form-item-choice-boolean{display:none;}
+.field-name-field-ask-privately{display:none;}
+
+.field-name-field-participant{display:none;}
+.field-name-field-group-admin{display:none;}
+.field-name-field-private-group{display:none;}
+.ckeditor_links{display:none!important;}
+.page-node-quiz-results .text-format-wrapper{display:none;}
+table#question-list th:nth-child(6){display:none;}
+table#question-list tr td:nth-child(6){display:none;}
+.export_result{float:right;}
+.add-review-link{display:none;}
+
+.page-node-edit .node-propose_an_article-form .field-name-field-image .form-type-managed-file {
+  display: none !important;
+}
+
+.node-page-form .form-item-title,
+.node-advertise_with_us-form .form-item-title,
+.node-contact_us-form .form-item-title,
+.node-meet_the_team-form .form-item-title {
+	display: none;
+}
+
+.node-article-form .field-name-field-rate-or-rate-feedback {
+	display: none;
+}

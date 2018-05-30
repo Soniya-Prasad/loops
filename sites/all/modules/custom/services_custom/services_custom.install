@@ -1,0 +1,13 @@
+<?php
+function services_custom_update_7101() {
+	// Drop all primary keys.
+	db_drop_primary_key('poll_vote');
+	// Add sid field
+	db_add_field('poll_vote', 'sid', array(
+		'description' => 'sid coming from session_api table',
+		'type' => 'int',
+		'length' => 11,
+		'not null' => TRUE
+	));
+}
+?>

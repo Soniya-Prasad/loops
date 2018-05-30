@@ -1,0 +1,3 @@
+name = Article Selector
+description = Generic Selector feature for selecting article and sort for the various part of website.
+core = 7.x

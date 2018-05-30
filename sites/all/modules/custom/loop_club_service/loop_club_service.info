@@ -1,0 +1,5 @@
+name = Loop Club Services
+description = Service support for loop club module.
+core = 7.x
+dependencies[] = services
+package = Custom

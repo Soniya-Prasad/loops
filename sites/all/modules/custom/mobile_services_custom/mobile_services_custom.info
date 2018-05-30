@@ -1,0 +1,6 @@
+name = Mobile Custom Services
+description = Here are some mobile custom services defined
+package = Custom
+core = 7.x
+dependencies[] = services (>= 3.x)
+dependencies[] = session_api

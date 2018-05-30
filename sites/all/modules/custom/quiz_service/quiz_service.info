@@ -1,0 +1,6 @@
+name = Quiz Services
+description = Service support for quiz module.
+core = 7.x
+dependencies[] = services
+dependencies[] = quiz 
+package = Custom

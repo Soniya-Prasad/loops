@@ -1,0 +1,259 @@
+<?php
+/**
+ * Implements hook_services_resources().
+ */
+function quiz_service_services_resources() {
+  $api = array(
+    'quiz' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve a quiz',
+          'callback' => 'quiz_resource_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'quiz_service', 'name' => 'resources/quiz_resource'),
+          'access arguments' => array('access quiz'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the quiz to retrieve.',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'quiz_result' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve a quiz result',
+          'callback' => 'quiz_result_resource_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'quiz_service', 'name' => 'resources/quiz_resource'),
+          'access arguments' => array('access quiz'),
+          'args' => array(
+            array(
+              'name' => 'quiz_id',
+              'type' => 'int',
+              'description' => 'The quiz nid of the quiz result to retrieve.',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'result_id',
+              'type' => 'int',
+              'description' => 'The result id of the quiz result to retrieve.',
+              'source' => array('path' => 1),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'submit_quiz' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Submit Quiz', 
+          'callback' => 'quiz_resource_submit_quiz',
+          'file' => array('type' => 'inc', 'module' => 'quiz_service', 'name' => 'resources/quiz_resource'),
+          'access arguments' => array('access quiz'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The quiz data to submit',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function quiz_service_menu() {
+  $items['admin/export-result/%'] = array(
+    'title' => 'Export Result',
+    'page callback' => '_export_winner_list',
+    'page arguments' => array(2),
+    'access arguments' => array('access quiz'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+function _export_winner_list($quiz_id) {
+  $quiz = node_load($quiz_id);
+  $query = db_select('quiz_node_results', 'qnr');
+  $query->fields('qnr', array());
+  $query->addExpression('finish_time - time_start', 'duration');
+  $query->condition('qnr.nid', $quiz_id);
+  $query->orderBy('score', 'DESC');
+  $query->orderBy('duration', 'ASC');
+  $top_scorers = $query->execute()->fetchAll();
+  
+  module_load_include('php', 'quiz_service', 'Classes/PHPExcel');
+  
+  // Create new PHPExcel object
+  $objPHPExcel = new PHPExcel();
+  
+  // Set document properties
+  $objPHPExcel->getProperties()->setCreator("Loop Arabia")
+  						 ->setLastModifiedBy("Loop Arabia")
+  						 ->setTitle("Loop Arabia Quiz Result")
+  						 ->setSubject("Loop Arabia Quiz Result")
+  						 ->setDescription("Loop Arabia Quiz Result")
+  						 ->setKeywords("Loop Arabia Quiz Result")
+  						 ->setCategory("Loop Arabia Quiz Result");
+  
+  
+  // Add some data
+  $writer = $objPHPExcel->setActiveSheetIndex(0);
+  $writer->setCellValue('A1', 'Email Address');
+  $writer->setCellValue('B1', 'Date Started');
+  $writer->setCellValue('C1', 'Date Finished');
+  $writer->setCellValue('D1', 'Duration (Seconds)');
+  $writer->setCellValue('E1', 'Score');
+  $i = 2;
+  foreach($top_scorers as $ts_detail) {
+    $account = user_load($ts_detail->uid);
+    if($ts_detail->duration <= 0){
+      $duration = 0;
+    } else {
+      $duration = $ts_detail->duration;
+    }
+    if($ts_detail->score > 0){
+      $writer->setCellValue('A'.$i, $account->mail);
+      $writer->setCellValue('B'.$i, date('d/m/Y g:i:s',$ts_detail->time_start));
+      $writer->setCellValue('C'.$i, ($ts_detail->finish_time)?date('d/m/Y g:i:s',$ts_detail->finish_time):"");
+      $writer->setCellValue('D'.$i, $duration);
+      $writer->setCellValue('E'.$i, $ts_detail->score . '%');
+    }
+    $i++;
+  }
+  
+  // Rename worksheet
+  $objPHPExcel->getActiveSheet()->setTitle('Loop Arabia Quiz Result');
+  
+  // Set active sheet index to the first sheet, so Excel opens this as the first sheet
+  $objPHPExcel->setActiveSheetIndex(0);
+  
+  // Redirect output to a client’s web browser (Excel5)
+  header('Content-Type: application/vnd.ms-excel');
+  header('Content-Disposition: attachment;filename="'.quiz_slug($quiz->title).'.xls"');
+  header('Cache-Control: max-age=0');
+  // If you're serving to IE 9, then the following may be needed
+  header('Cache-Control: max-age=1');
+  
+  // If you're serving to IE over SSL, then the following may be needed
+  header ('Expires: Mon, 26 Jul 1997 05:00:00 GMT'); // Date in the past
+  header ('Last-Modified: '.gmdate('D, d M Y H:i:s').' GMT'); // always modified
+  header ('Cache-Control: cache, must-revalidate'); // HTTP/1.1
+  header ('Pragma: public'); // HTTP/1.0
+  
+  $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+  $objWriter->save('php://output');
+  exit;
+}
+function _winner_list(){
+  $vars = array();
+  $nid = arg(1);
+
+  $node = node_load($nid);
+  #echo "<pre>" .print_r($node,"\n"). "</pre>"; 
+  $query = db_select('quiz_node_results', 'qnr');
+  $query->fields('qnr', array());
+  $query->addExpression('finish_time - time_start', 'duration');
+  $query->condition('qnr.nid', $nid);
+  $query->orderBy('score', 'DESC');
+  $query->orderBy('duration', 'ASC');
+  $query->range(0, 5);
+
+  $top_scorers = $query->execute()->fetchAll();
+  
+  foreach($top_scorers as $ts_detail) {
+    $account = user_load($ts_detail->uid);
+    if($ts_detail->duration <= 0){
+      $duration = 0;
+    } else {
+      $duration = $ts_detail->duration;
+    }
+    if($ts_detail->score > 0){
+      $content[] = array(
+        'email_address' => $account->mail,
+        'start_time' => date('d/m/Y g:i:s',$ts_detail->time_start),
+        'finish_time' => ($ts_detail->finish_time)?date('d/m/Y g:i:s',$ts_detail->finish_time):"",
+        'duration' => $duration,
+        'score' => $ts_detail->score . '%',      
+      );
+    }
+  }
+  $output.= "<h2>".t('Top 5 Scorer')."</h2>";
+  $output.= '<span class="export_result">'.l('Export Result','admin/export-result/'.$node->nid).'</span>';
+  $quiz_time = '';
+  if($node->quiz->time_limit > 0){
+    $quiz_time = ' '.$node->quiz->time_limit;
+  }
+  
+  $header = array(
+		'email_address' => t('Email Address'),
+		'start_time' => t('Date Started'),
+		'finish_time' => t('Date Finished'),
+		'duration' => t('Duration ('.$quiz_time.' Seconds )'),
+		'score' => t('Score'),
+	);
+	$output.= theme('table', array(
+		'header' => $header,
+		'rows' => $content,
+		'empty' => t('No Record Found.')
+	));
+	return $output;
+  
+}
+
+
+/**
+ * Implements hook_block_info().
+ */
+function quiz_service_block_info() {
+  $blocks['assessment_result'] = array(
+    'info' => 'Assessment Result',
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function quiz_service_block_view($delta = '') {
+  $block = array();
+  $arg = arg();
+  switch ($delta) {
+    case 'assessment_result':
+      if($arg[0] == 'node' && isset($arg[1]) && is_numeric($arg[1]) && $arg[2] == 'quiz'){
+        $block['content'] = _winner_list();
+      }
+      break;
+  }
+  return $block;
+}
+
+function quiz_slug( $text )
+{
+	$trans = [
+		'?' => 'a', '?' => 'b', '?' => 'v', '?' => 'g', '?' => 'd', '?' => 'e', '?' => 'jo', '?' => 'zh', '?' => 'z', '?' => 'i', '?' => 'jj',
+		'?' => 'k', '?' => 'l', '?' => 'm', '?' => 'n', '?' => 'o', '?' => 'p', '?' => 'r', '?' => 's', '?' => 't', '?' => 'u', '?' => 'f',
+		'?' => 'kh', '?' => 'c', '?' => 'ch', '?' => 'sh', '?' => 'shh', '?' => '', '?' => 'y', '?' => '', '?' => 'eh', '?' => 'ju', '?' => 'ja',
+	];
+	$text  = mb_strtolower( $text, 'UTF-8' ); // lowercase cyrillic letters too
+	$text  = strtr( $text, $trans ); // transliterate cyrillic letters
+	$text  = preg_replace( '/[^A-Za-z0-9 _.]/', '', $text );
+	$text  = preg_replace( '/[ _.]+/', '-', trim( $text ) );
+	$text  = trim( $text, '-' );
+	return $text;
+}

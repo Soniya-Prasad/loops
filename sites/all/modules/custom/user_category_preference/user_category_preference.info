@@ -1,0 +1,6 @@
+name = User Category Preference
+description = Category preference for users
+package = Custom
+core = 7.x
+dependencies[] = services (>= 3.x)
+dependencies[] = services_custom

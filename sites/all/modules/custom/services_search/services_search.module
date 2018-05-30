@@ -1,0 +1,34 @@
+<?php
+
+/**
+ * Implements hook_services_resources().
+ */
+function services_search_services_resources() {
+  $search_resource = array(
+    'search_node' => array(
+      'operations' => array(
+        'index' => array(
+          'file' => array('type' => 'inc', 'module' => 'services_search', 'name' => 'services_search.resource'),
+          'callback' => '_services_search_resource_node',
+          'access arguments' => array('search content'),
+          //'access arguments append' => FALSE,                    
+        ),
+      ),
+    ),
+  );
+  return $search_resource;
+}
+
+
+
+function services_search_query_alter(&$query) {
+  foreach ($query->getTables() as $table) {
+    if ($table['table'] == 'search_index') {
+      // only search for content of specific types
+      $query->condition('n.type', array('article'), 'IN');
+
+      // break since we don't need to check any further
+      break;
+    }
+  }
+}

@@ -1,0 +1,399 @@
+<?php
+/**
+ * Implements hook_action_info().
+ */
+function article_selector_action_info() {
+  return array(
+    'custom_to_currently_looping' => array(
+      'type' => 'entity',
+      'label' => t('Currently Looping'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_currently_looping' => array(
+      'type' => 'entity',
+      'label' => t('Remove Currently Looping'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_homepage_slider_section_1' => array(
+      'type' => 'entity',
+      'label' => t('Homepage Slider Section 1'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_homepage_slider_section_1' => array(
+      'type' => 'entity',
+      'label' => t('Remove Homepage Slider Section 1'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_homepage_slider_section_2' => array(
+      'type' => 'entity',
+      'label' => t('Homepage Slider Section 2'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_homepage_slider_section_2' => array(
+      'type' => 'entity',
+      'label' => t('Remove Homepage Slider Section 2'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_homepage_gallery' => array(
+      'type' => 'entity',
+      'label' => t('Gallery Homepage Flag'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_to_homepage_gallery' => array(
+      'type' => 'entity',
+      'label' => t('Remove Gallery Homepage Flag'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_category_top_stories' => array(
+      'type' => 'entity',
+      'label' => t('Category Top Stories'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_to_category_top_stories' => array(
+      'type' => 'entity',
+      'label' => t('Remove Category Top Stories'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_category_promoted_article' => array(
+      'type' => 'entity',
+      'label' => t('Sub Category Promoted Article'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_to_category_promoted_article' => array(
+      'type' => 'entity',
+      'label' => t('Remove Sub Category Promoted Article'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'custom_to_most_popular_article' => array(
+      'type' => 'entity',
+      'label' => t('Most Popular Article'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+    'remove_to_most_popular_article' => array(
+      'type' => 'entity',
+      'label' => t('Remove Most Popular Article'),
+      'behavior' => array('changes_property'),
+      'configurable' => FALSE,
+      'vbo_configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+/** Currently Looping **/
+function custom_to_currently_looping(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Currently Looping Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_currently_looping(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Currently Looping Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+  }
+  return;
+}
+
+/** Homepage Slider Section 1 **/
+
+function custom_to_homepage_slider_section_1(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Homepage Slider Section 1'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_homepage_slider_section_1(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Homepage Slider Section 1'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+  }
+  return;
+}
+
+/** Homepage Slider Section 2 **/
+
+function custom_to_homepage_slider_section_2(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Homepage Slider Section 2'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_homepage_slider_section_2(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Homepage Slider Section 2'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+  }
+  return;
+}
+
+/** Photo and Video Gallery **/
+
+function custom_to_homepage_gallery(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $node->promote = 1;
+  node_save($node);
+  return;
+}
+
+function remove_to_homepage_gallery(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $node->promote = 0;
+  node_save($node);
+  return;
+}
+
+
+/** Category Top Stories **/
+
+function custom_to_category_top_stories(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Top Stories Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_to_category_top_stories(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Top Stories Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+  }
+  return;
+}
+
+/** Category Promoted Article **/
+
+function custom_to_category_promoted_article(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Promoted Article Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_to_category_promoted_article(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Promoted Article Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+    db_query("delete from draggableviews_structure where view_name = 'category_promoted_article' and entity_id = ".$entity->nid)->execute();
+  }
+  return;
+}
+
+/** Most Popular Article **/
+function custom_to_most_popular_article(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Most Popular Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    $node->field_article_section_type[LANGUAGE_NONE][]['tid'] = $term->tid;
+  } else {
+    $node->field_article_section_type[LANGUAGE_NONE][0]['tid'] = $term->tid;
+  }
+  node_save($node);
+  return;
+}
+
+function remove_to_most_popular_article(&$entity, $context) {
+  $node = '';
+  $node = node_load($entity->nid);
+  $term = array_shift(taxonomy_get_term_by_name('Most Popular Section'));
+  if(isset($node->field_article_section_type[LANGUAGE_NONE]) && !empty($node->field_article_section_type[LANGUAGE_NONE])) {
+    foreach($node->field_article_section_type[LANGUAGE_NONE] as $key => $term_val) {
+      if($term->tid == $term_val['tid']) {
+        unset($node->field_article_section_type[LANGUAGE_NONE][$key]);
+      }
+    }
+    node_save($node);
+  }
+  return;
+}
+
+function article_selector_views_bulk_operations_form_alter(&$form, &$form_state, $vbo) {
+  if($form['#form_id'] == 'views_form_article_selector_page_4' || $form['#form_id'] == 'views_form_article_selector_page_5') {
+    $query = drupal_get_query_parameters($_GET, array('q'));
+    $vbo->options['vbo_settings']['custom_redirect'] = url($vbo->options['vbo_settings']['custom_redirect'], array('query' => $query, 'absolute' => TRUE));
+  }
+  elseif ($form_state['step'] == 'views_bulk_operations_confirm_form') {
+    switch ($form['#form_id']) {
+      case 'views_form_video_gallery_admin_listing_page':
+        $form['actions']['submit']['#submit'][] = 'clear_video_gallery_cache';
+        break;
+
+      case 'views_form_photo_gallery_admin_listing_page':
+        $form['actions']['submit']['#submit'][] = 'clear_photo_gallery_cache';
+        break;
+
+      case 'views_form_article_listing_page':
+        $form['actions']['submit']['#submit'][] = 'clear_article_cache';
+        break;
+    }
+  }
+}
+
+function clear_video_gallery_cache(&$form, &$form_state) {
+  //Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all video gallery contents and generate json
+  $content = _get_all_video_gallery_contents();
+  site_custom_generate_json('video_gallery.json', $content);
+
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_video_gallery_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+}
+
+function clear_photo_gallery_cache(&$form, &$form_state) {
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  // Get all photo gallery contents and generate json
+  $content = _get_all_photo_gallery_contents();
+  site_custom_generate_json('photo_gallery.json', $content);
+
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_photo_gallery_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+}
+
+function clear_article_cache(&$form, &$form_state) {
+  // Get all homepage contents and generate json
+  $content = _get_all_homepage_contents();
+  site_custom_generate_json('homepage.json', $content);
+
+  array_map('unlink', glob("../articles/articles-".$node->nid.".html"));
+  array_map('unlink', glob("../Loop-Arabia-Mobile/articles/articles-".$node->nid.".html"));
+  
+  $scripts = array(
+    FRONT_PAGE_PATH.'/php_script/homepage_slider.php',
+    FRONT_PAGE_PATH.'/php_script/currently_looping.php',
+    FRONT_PAGE_PATH.'/php_script/currently_looping_mobile.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular.php',
+    FRONT_PAGE_PATH.'/php_script/homepage_most_popular_mobile.php',
+  );
+
+  foreach ($scripts as $script) {
+    site_customs_run_script($script);
+  }
+}

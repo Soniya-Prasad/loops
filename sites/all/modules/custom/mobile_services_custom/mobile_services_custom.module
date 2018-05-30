@@ -1,0 +1,731 @@
+<?php
+
+/**
+ * Implements of hook_services_resources().
+ */
+function mobile_services_custom_services_resources() {
+  $api = array(
+    'updateDevice' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Save device details and create temporary user',
+          'callback' => '_user_create_device', 
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'data', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The device data to save for user',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_user' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Update an app temporoary user on register',
+          'callback' => '_user_app_register_update',
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'Unique identifier for this user',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'type' => 'array',
+              'description' => 'The user object with updated information',
+              'source' => 'data',
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_user_profile' => array(
+      'operations' => array(
+        'update' => array(
+          'help' => 'Update an app user profile',
+          'callback' => '_user_app_profile_update',
+          'access callback' => '_user_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'Unique identifier for this user',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'type' => 'array',
+              'description' => 'The user object with updated information',
+              'source' => 'data',
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_comment' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Create an app comment',
+          'callback' => '_comment_app_create',
+          'access callback' => '_comment_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'data',
+              'type' => 'array',
+              'description' => 'The comment object',
+              'source' => 'data',
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+        'retrieve' => array(
+          'help' => 'Retrieve all node comments',
+          'callback' => '_all_comment_app_retrieve',
+          'access callback' => '_comment_resource_access',
+          'access arguments' => array('view'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the node to retrieve comments.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_homepage_articles' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve all articles, photo gallery & video gallery which are coming on homepage.',
+          'callback' => '_app_homepage_articles_list',
+          'access arguments' => array('access content'),
+          'args' => array(
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_photo_gallery' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve all photo galleries',
+          'callback' => '_app_photo_gallery',
+          'access arguments' => array('access content'),
+        ),
+      ),
+    ),
+    'app_video_gallery' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve all video galleries',
+          'callback' => '_app_video_gallery',
+          'access arguments' => array('access content'),
+        ),
+      ),
+    ),
+    'app_related_articles' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve all related articles',
+          'callback' => '_app_related_articles',
+          'access arguments' => array('access content'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the node to retrieve related articles.',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'uid',
+              'type' => 'int',
+              'description' => 'The user id.',
+              'source' => array('path' => '1'),
+              'optional' => TRUE,
+            ),
+          ),
+        ),
+      ),
+    ),
+    'app_today_poll' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'Add user vote',
+          'callback' => '_app_add_user_vote',
+          'access arguments' => array('vote on polls'),
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE,
+              'source' => 'data', 
+              'description' => 'The user poll vote to add',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+
+function convertToSlug($text) {
+  return strtolower(preg_replace('/[^\w-]/', '', str_replace(' ','-',$text)));
+}
+
+function _app_related_articles($nid, $uid) {
+
+  $conditions = '';
+  $node = node_load($nid);
+  if(isset($node->field_tags[LANGUAGE_NONE])) {
+    foreach ($node->field_tags[LANGUAGE_NONE] as $key => $tags) {
+      $conditions .= '&tid[]='.$tags['tid'];
+    }
+  }
+
+  $conditions .= (isset($node->field_primary_category[LANGUAGE_NONE][0]['tid'])) ? '&primary_tid='.$node->field_primary_category[LANGUAGE_NONE][0]['tid'] :'';
+  $conditions .= (isset($node->field_tags[LANGUAGE_NONE][0]['tid'])) ? '&category_tid='.$node->field_tags[LANGUAGE_NONE][0]['tid'] :'';
+
+  // Get related articles from api
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/related-articles-api.json?not_nid=".$nid.$conditions;
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    $result->related_articles = $response->data;
+    $result->total_comments = db_query("SELECT COUNT(cid) AS count FROM {comment} WHERE status = 1 AND nid =:nid",array(":nid"=>$nid))->fetchField();
+    if(isset($uid) && $uid>0) {
+      $user_rating = db_query("SELECT value FROM {votingapi_vote} WHERE uid = :uid AND entity_id =:nid",array(":uid"=>$uid, ":nid"=>$nid))->fetchField();
+      $result->user_rating = (isset($user_rating) && (!empty($user_rating))) ? ($user_rating*5)/100 : 0;
+
+      $query = db_select('flagging', 'fg');
+      $query->join('flag', 'f', 'fg.fid = f.fid');
+      $query->fields('f', array('fid'));
+      $query->condition('f.name', 'like', '=');
+      $query->condition('fg.entity_id', $nid, '=');
+      $query->condition('fg.uid', $uid, '=');
+      $ad_count = $query->execute()->rowCount();
+
+      $result->is_liked = ($ad_count>0) ? 1 : 0;
+
+    }
+    $article_url = variable_get('front_end_url')."/article/".convertToSlug($node->title).'/'.$nid.'?nid='.$nid.'&status='.$node->status;
+    $result->article_url = $article_url;
+  }
+
+  return $result;
+  
+}
+
+function _app_photo_gallery() {
+
+  // Read json from file
+  $json_path = file_create_url('public://app/json/photo_gallery.json');
+  if($result = file_get_contents($json_path)) {
+    $result = json_decode($result);
+
+    return $result;
+  }
+  
+}
+
+function _app_video_gallery() {
+
+  // Read json from file
+  $json_path = file_create_url('public://app/json/video_gallery.json');
+  if($result = file_get_contents($json_path)) {
+    $result = json_decode($result);
+
+    return $result;
+  }
+  
+}
+
+function _app_homepage_articles_list($uid) {
+  // Read json from file
+  $json_path = file_create_url('public://app/json/homepage.json');
+  if($result = file_get_contents($json_path)) {
+    $result = json_decode($result);
+
+    $data = _get_today_poll(1,$uid);
+    $data['type'] = 'today_poll';
+    $data['today_poll']->option_list = $data['option'];
+    unset($data['option']);
+    $result->article_list[] = $data;
+
+    return $result;
+  }
+  
+}
+
+function _get_all_homepage_contents() {
+  // Slider section articles
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/homepage_slider_section_1_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $data) {
+      unset($data->category);
+      $data->category = $data->primary_category;
+      $data->type = 'slider_section_1';
+      $result->article_list[] = $data;
+    }
+  }
+
+  // Slider section articles
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/homepage_slider_section_2_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $data) {
+      unset($data->category);
+      $data->category = $data->primary_category;
+      unset($data->primary_category);
+      $data->type = 'slider_section_2';
+      $result->article_list[] = $data;
+    }
+  }
+
+  // Sponsored article
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/sponsored-article-api.json?sponsored_section_home=1";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success && count($response->data)>0) {
+    $response->data[0]->category = $response->data[0]->primary_category;
+    unset($response->data[0]->primary_category);
+    $response->data[0]->type = 'sponsored_ad';
+    $result->article_list[] = $response->data[0];
+  }
+
+  // Currently looping articles
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/currently_looping_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $key => $data) {
+      if($key<2) {
+        unset($data->category);
+        $data->category = $data->primary_category;
+        unset($data->primary_category);
+        $data->type = 'currently_looping';
+        $result->article_list[] = $data;
+      }
+      else {
+        break;
+      }
+    }
+  }
+
+  // Video gallery
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/hompage_video_gallery_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $key => $data) {
+      if($key<3) {
+        $data->type = 'video_gallery';
+        $data->video_gallery = $data->gallery;
+        unset($data->gallery);
+        $result->article_list[] = $data;
+      }
+      else {
+        break;
+      }
+    }
+  }
+
+  // Photo gallery
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/hompage_photo_gallery_api.json?mobile=1";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $key => $data) {
+      if($key<3) {
+        $data->type = 'image_gallery';
+        $data->image_gallery = $data->gallery;
+        unset($data->gallery);
+        $result->article_list[] = $data;
+      }
+      else {
+        break;
+      }
+    }
+  }
+
+  // Most popular articles
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/homepage-most-popular-article-api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data as $key => $data) {
+      if($key<3) {
+        $data->category = $data->primary_category;
+        unset($data->primary_category);
+        $data->type = 'most_popular';
+        $result->article_list[] = $data;
+      }
+      else {
+        break;
+      }
+    }
+  }
+
+  return $result;
+}
+
+function _get_all_video_gallery_contents() {
+  // Main video gallery
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/video_gallery_listing_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    foreach ($response->data[0]->gallery_videos as $key => $gallery_video) {
+      $response->data[0]->gallery_videos[$key]->video = $gallery_video->video_url->value;
+      unset($response->data[0]->gallery_videos[$key]->video_url);
+    }
+    
+    $result->videoGallery->mainVideoAlbum = $response->data[0];
+  }
+
+  $terms = taxonomy_get_tree(3, 0, 1);
+  $key = 0;
+  foreach ($terms as $term) {
+    // category video gallery
+    $jsonurl = FRONT_PAGE_PATH."/loop/api/video_gallery_listing_api.json?term_node_tid_depth=".$term->tid;
+    $json = file_get_contents($jsonurl);
+    $response = json_decode($json);
+    if($response->success) {
+      if(count($response->data)>0) {
+        foreach ($response->data as $video_key => $data) {
+          foreach ($data->gallery_videos as $key1 => $gallery_video) {
+            $data->gallery_videos[$key1]->video = $gallery_video->video_url->value;
+            unset($data->gallery_videos[$key1]->video_url);
+          }
+          
+          $result->videoGallery->otherAlbums[$key][] = $data;
+          if($video_key==3) {
+            break;
+          }
+        }
+        $key++;
+      }
+    }
+  }
+
+  return $result;
+}
+
+function _get_all_photo_gallery_contents() {
+  // Main photo gallery
+  $jsonurl = FRONT_PAGE_PATH."/loop/api/photo_gallery_listing_api.json";
+  $json = file_get_contents($jsonurl);
+  $response = json_decode($json);
+  if($response->success) {
+    $result->photoGallery->mainPhotoAlbum = $response->data[0];
+  }
+
+  $terms = taxonomy_get_tree(3, 0, 1);
+  $key = 0;
+  foreach ($terms as $term) {
+    // category photo gallery
+    $jsonurl = FRONT_PAGE_PATH."/loop/api/photo_gallery_listing_api.json?term_node_tid_depth=".$term->tid;
+    $json = file_get_contents($jsonurl);
+    $response = json_decode($json);
+    if($response->success) {
+      if(count($response->data)>0) {
+        foreach ($response->data as $photo_key => $data) {
+          $result->photoGallery->otherAlbums[$key][] = $data;
+          if($photo_key==3) {
+            break;
+          }
+        }
+        $key++;
+      }
+    }
+  }
+
+  return $result;
+}
+
+function _user_create_device($data) {
+  if(isset($data['device_id']) && !empty($data['device_id']) && isset($data['model']) && !empty($data['model']) && isset($data['type']) && !empty($data['type'])) {
+    $account = array(
+      'name' => 'loop'.time(),
+      'mail' => 'loop'.time().'@looparabia.com',
+      'pass' => 'loop'.time(),
+    );
+
+    $account['field_full_name'][LANGUAGE_NONE][0]['value'] = 'loop'.time();
+
+    $user = _user_resource_create($account);
+
+    if(isset($user['uid'])) {
+      $role_name = 'temporary user';
+      if ($role = user_role_load_by_name($role_name)) {
+        user_multiple_role_edit(array($user['uid']), 'add_role', $role->rid);
+      }
+
+      db_insert('user_device')
+            ->fields(array(
+              'uid' => $user['uid'],
+              'device_id' => $data['device_id'],
+              'model' => $data['model'],
+              'type' => $data['type'],
+            ))
+            ->execute();
+
+      return $user;
+    }
+  }
+  else {
+    return services_error(t("Missing data: failed to update device"), 406);
+  }
+}
+
+function _user_app_register_update($uid, $data) {
+	global $language;
+
+  $register_check = user_load_by_mail($data['mail']);
+
+  if(user_load_by_mail($data['mail'])) {
+    return services_error(t("The e-mail address !email is already registered. Have you forgotten your password?",array('!email'=>$data['mail'])), 406);
+  }
+
+	if(isset($data['full_name']) && !empty($data['full_name'])) {
+		$data['field_full_name'][LANGUAGE_NONE][0]['value'] = $data['full_name'];
+	}
+	else {
+		return services_error(t("Full Name field is required."), 406);
+	}
+
+	if(isset($data['dob']) && !empty($data['dob'])) {
+		$data['field_dob'][LANGUAGE_NONE][0]['value']['date'] = $data['dob'];
+	}
+	else {
+		return services_error(t("Date of Birth field is required."), 406);
+	}
+
+	if(isset($data['gender']) && !empty($data['gender'])) {
+		$data['field_gender'][LANGUAGE_NONE] = $data['gender'];
+	}
+	else {
+		return services_error(t("Gender field is required."), 406);
+	}
+
+  $edit = array();
+  if(isset($data['name'])) {
+    $edit['name'] = $data['name'];
+    unset($data['name']);
+  }
+
+	// Update all details
+	_user_resource_update($uid, $data);
+	// Update username and remove temporary role
+	$user = user_load($uid);
+
+	if (isset($user->roles[6])) {
+		unset($user->roles[6]);
+		$edit['roles'] = $user->roles;
+	}
+	$account = user_save($user,$edit);
+
+	// Mail the welcome email using current language.
+  _user_mail_notify('register_pending_approval', $account, $language);
+
+	return $account;
+}
+
+function _user_app_profile_update($uid, $data) {
+	if(isset($data['full_name']) && !empty($data['full_name'])) {
+		$account['field_full_name'][LANGUAGE_NONE][0]['value'] = $data['full_name'];
+	}
+	else {
+		return services_error(t("Full Name field is required."), 406);
+	}
+
+	if(isset($data['dob']) && !empty($data['dob'])) {
+		$account['field_dob'][LANGUAGE_NONE][0]['value']['date'] = $data['dob'];
+	}
+	else {
+		return services_error(t("Date of Birth field is required."), 406);
+	}
+
+	if(isset($data['gender']) && !empty($data['gender'])) {
+		$account['field_gender'][LANGUAGE_NONE] = $data['gender'];
+	}
+	else {
+		return services_error(t("Gender field is required."), 406);
+	}
+
+	if(isset($data['country']) && !empty($data['country'])) {
+		$account['field_user_country'][LANGUAGE_NONE] = $data['country'];
+	}
+	else {
+		return services_error(t("Country field is required."), 406);
+	}
+
+	if(isset($data['state']) && !empty($data['state'])) {
+		$account['field_state'][LANGUAGE_NONE] = $data['state'];
+	}
+	else {
+		return services_error(t("State field is required."), 406);
+	}
+
+	if(isset($data['mobile_number']) && !empty($data['mobile_number'])) {
+		$account['field_mobile_number'][LANGUAGE_NONE][0]['value'] = $data['mobile_number'];
+	}
+
+	if(isset($data['bio']) && !empty($data['bio'])) {
+		$account['field_bio'][LANGUAGE_NONE][0]['value'] = $data['bio'];
+	}
+
+	if(isset($data['landline_number']) && !empty($data['landline_number'])) {
+		$account['field_landline_number'][LANGUAGE_NONE][0]['value'] = $data['landline_number'];
+	}
+
+	if(isset($data['school_college_name']) && !empty($data['school_college_name'])) {
+		$account['field_school_college_name'][LANGUAGE_NONE][0]['value'] = $data['school_college_name'];
+	}
+
+	if(isset($data['theme_color']) && !empty($data['theme_color'])) {
+		$account['field_theme_color'][LANGUAGE_NONE][0]['value'] = $data['theme_color'];
+	}
+
+	$account = _user_resource_update($uid, $account);
+
+	return $account;
+}
+
+function _comment_app_create($comment) {
+  if(isset($comment['comment']) && !empty($comment['comment'])) {
+    $comment['comment_body'][LANGUAGE_NONE][0]['value'] = $comment['comment'];
+  }
+  else {
+    return services_error(t("Comment field is required."), 406);
+  }
+
+  _comment_resource_create($comment);
+}
+
+function _all_comment_app_retrieve($nid){
+	$i = 0;
+	$comments = '';
+	$node_comments = comment_load_multiple(array(),array('nid'=>$nid,'pid'=>0,'status'=>1));
+	foreach ($node_comments as $comment) {
+		$comment_data = _comment_data($comment);
+		$comments->comment_list[$i] = $comment_data;
+
+		$comment_reply = comment_load_multiple(array(),array('nid'=>$nid,'pid'=>$comment->cid,'status'=>1));
+		if(count($comment_reply)>0) {
+			$j = 0;
+			foreach ($comment_reply as $reply) {
+				$reply_data = _comment_data($reply);
+				$comments->comment_list[$i]['replies'][$j] = $reply_data;
+				
+				$j++;
+			}
+		}
+		$i++;
+	}
+	return $comments;
+}
+
+function _comment_data($comment) {
+	$comment_data = array();
+	if(isset($comment) && is_object($comment)) {
+		$comment_data['comment'] = $comment->comment_body[LANGUAGE_NONE][0]['value'];
+		$comment_data['pid'] = $comment->pid;
+		$comment_data['cid'] = $comment->cid;
+		if(isset($comment->u_uid)) {
+			$comment_user = user_load($comment->u_uid);
+			$comment_data['author'] = isset($comment_user->field_full_name[LANGUAGE_NONE][0]['value']) ? $comment_user->field_full_name[LANGUAGE_NONE][0]['value'] : '';
+			$comment_data['picture'] = isset($comment_user->picture->uri) ? file_create_url($comment_user->picture->uri) : '';
+		}
+
+		$unixstamp = $comment->created;
+		$time_since = mktime() - $unixstamp;
+		if ($time_since < 86400) {
+			$date_str = format_interval(($time_since) , 2) . t(' ago');
+		}
+		else {
+			$date_str = format_date($unixstamp, 'custom', 'jS F Y');
+		}
+
+		$comment_data['post_date'] = $date_str;
+	}
+	
+	return $comment_data;
+}
+
+function _app_add_user_vote($data) {
+
+  if(is_numeric($data['chid'])) {
+    $uid = (isset($data['uid']) && !empty($data['uid']))?$data['uid']:0;
+    if(isset($data['nid']) && is_numeric($data['nid'])) {
+      $poll_details = '';
+      if(isset($data['sid']) && !empty($data['sid'])) {
+        $poll_details = _get_poll_vote_by_sid($data['sid'], $data['nid'], $uid);
+      }
+
+      if(empty($poll_details)) {
+        $sid = session_api_get_sid();
+        db_insert('poll_vote')
+          ->fields(array(
+            'nid' => $data['nid'],
+            'chid' => $data['chid'],
+            'uid' => $uid,
+            'hostname' => isset($data['host'])?$data['host']:'',
+            'timestamp' => REQUEST_TIME,
+            'sid' => (isset($_GET['mobile']) && $_GET['mobile']==1)?0:$sid,
+          ))
+          ->execute();
+
+        // Add one to the votes.
+        db_update('poll_choice')
+          ->expression('chvotes', 'chvotes + 1')
+          ->condition('chid', $data['chid'])
+          ->execute();
+
+        return _get_today_poll($sid, $uid);
+      }
+      else {
+        return services_error(t("You have already voted for this poll"), 406);
+      }
+    }
+    else {
+      return services_error(t("Missing data: failed to add vote"), 406);
+    }
+  }
+  else {
+    return services_error(t("Please select one option to vote"), 406);
+  }
+
+}

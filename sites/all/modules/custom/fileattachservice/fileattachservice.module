@@ -1,0 +1,181 @@
+<?php 
+/**
+ * Implements of hook_services_resources().
+ */
+function fileattachservice_services_resources() {
+  $api = array(
+    'fileattach' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'create a file', 
+          'callback' => '_fileattachservice_file_create',
+          'access callback' => 'services_access_menu',
+          'args' => array(
+            array(
+              'name' => 'data',
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The file data to create',
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+    'propose_article' => array(
+      'operations' => array(
+        'create' => array(
+          'help' => 'create a node', 
+          'callback' => '_fileattachservice_propose_article_create',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('create'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to create', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+        'update' => array(
+          'help' => 'Update Contributed article',
+          'callback' => '_fileattachservice_propose_article_update',
+          'access callback' => '_node_resource_access',
+          'access arguments' => array('update'),
+          'access arguments append' => TRUE,
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The node id',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'node', 
+              'optional' => FALSE, 
+              'source' => 'data', 
+              'description' => 'The node data to update', 
+              'type' => 'array',
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}
+
+function _fileattachservice_propose_article_create($node) {
+  $node = _services_arg_value($node, 'node');
+  
+  $nodeObj = new StdClass();
+  $nodeObj->type = 'propose_an_article';
+  $nodeObj->status = 1;
+  $nodeObj->language = LANGUAGE_NONE;
+  if(isset($node['uid']) && is_numeric($node['uid'])) {
+    $user = user_load($node['uid']);
+    if(!isset($user->field_bio[LANGUAGE_NONE][0]['value']) || !isset($user->field_full_name[LANGUAGE_NONE][0]['value']) || !isset($user->field_user_country[LANGUAGE_NONE][0]['tid']) || !isset($user->field_state[LANGUAGE_NONE][0]['tid']) || !isset($user->field_dob[LANGUAGE_NONE][0]['value'])) {
+       return services_error(t('Please enter user profile first'),406);
+    }
+    $nodeObj->uid = $node['uid'];
+  } else {
+    return services_error(t('User id does not exist.'),406);
+  }
+
+  if(isset($node['title']) && !empty($node['title'])) {
+    $nodeObj->title = $node['title'];
+  } else {
+    return services_error(t('Node title does not exist.'),406);
+  }
+  if(isset($node['body']) && !empty($node['body'])) {
+    $nodeObj->body[LANGUAGE_NONE][0]['value'] = $node['body'];
+  } else {
+    return services_error(t('Node Content does not exist.'),406);
+  }
+  if(isset($node['category']) && is_integer($node['category'])){
+    $nodeObj->field_category[LANGUAGE_NONE][0]['tid'] = $node['category'];
+  }
+
+  if(isset($node['image']) && is_array($node['image'])) {
+    foreach($node['image'] as $image){
+      $nodeObj->field_image[LANGUAGE_NONE][]['fid'] = $image;
+    }
+  } else {
+    return services_error(t("Missing data the file upload can not be completed"), 500);
+  }
+  if(isset($node['youtube']) && !empty($node['youtube'])){
+    if(is_array($node['youtube'])) {
+      foreach($node['youtube'] as $youtubeurl)
+        $nodeObj->field_you_tube_url[LANGUAGE_NONE][]['value'] = $youtubeurl; 
+    }
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _fileattachservice_propose_article_update($nid, $node) {
+  $node = _services_arg_value($node, 'node');
+
+  $nodeObj = node_load($nid);
+  if(isset($node['title']) && !empty($node['title'])) {
+    $nodeObj->title = $node['title'];
+  } else {
+    return services_error(t('Node title does not exist.'),406);
+  }
+  if(isset($node['body']) && !empty($node['body'])) {
+    $nodeObj->body[LANGUAGE_NONE][0]['value'] = $node['body'];
+  } else {
+    return services_error(t('Node Content does not exist.'),406);
+  }
+  if(isset($node['category']) && is_integer($node['category'])){
+    $nodeObj->field_category[LANGUAGE_NONE][0]['tid'] = $node['category'];
+  }
+
+  if(isset($node['image']) && is_array($node['image'])) {
+    foreach($node['image'] as $image){
+      $nodeObj->field_image[LANGUAGE_NONE][]['fid'] = $image;
+    }
+  } else {
+    return services_error(t("Missing data the file upload can not be completed"), 500);
+  }
+  
+  if(isset($node['youtube']) && !empty($node['youtube'])){
+    unset($nodeObj->field_you_tube_url);
+    if(is_array($node['youtube'])) {
+      foreach($node['youtube'] as $youtubeurl)
+        $nodeObj->field_you_tube_url[LANGUAGE_NONE][]['value'] = $youtubeurl; 
+    }
+  }
+
+  $new_node = node_save($nodeObj);
+  return $new_node;
+}
+
+function _fileattachservice_file_create($data) {
+  
+    if(isset($data['image']) && !empty($data['image'])) {
+      $img_data = explode('data:image/', $data['image']);
+      $image = explode('base64,', $img_data[1]);
+      $img_ext = explode(';', $img_data[1]);
+
+      if(isset($img_ext[0]) && !empty($img_ext[0]) && isset($image[1]) && !empty($image[1])) {
+        $img_name = (isset($data['name']) && !empty($data['name'])) ? $data['name'] : time();
+        $dir_name = (isset($data['directory']) && !empty($data['directory'])) ? $data['directory'] : 'proposed_article_image';
+        $dir = 'public://'.$dir_name.'/'.$img_name.'.'.$img_ext[0];
+        if (!$file_saved = file_save_data(base64_decode($image[1]), $dir)) {
+          return services_error(t("Could not write file to destination"), 406);
+        }
+        return $file_saved->fid;
+      }
+      else {
+        return services_error(t("Missing data the file upload can not be completed"), 406);
+      }
+    } else {
+      return services_error(t("Image Data Missing."), 406);
+    }
+}

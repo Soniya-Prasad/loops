@@ -1,0 +1,49 @@
+<?php
+/**
+ * Implements hook_permission().
+ */ 
+function game_service_permission() {
+  return array(
+    'access html game' => array(
+      'title' => t('Access HTML Game'),
+      'description' => t('can access html game.'),
+    ),
+  );
+}
+/**
+ * Implements hook_services_resources().
+ */
+function game_service_services_resources() {
+  $api = array(
+    'fetch_game' => array(
+      'operations' => array(
+        'retrieve' => array(
+          'help' => 'Retrieve a game detail',
+          'callback' => 'game_service_resource_game_retrieve',
+          'file' => array('type' => 'inc', 'module' => 'game_service', 'name' => 'resources/game_resource'),
+          'access arguments' => array('access html game'),
+          'args' => array(
+            array(
+              'name' => 'nid',
+              'type' => 'int',
+              'description' => 'The nid of the game to retrieve.',
+              'source' => array('path' => 0),
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),    
+    ),
+    'game_listing' => array(
+      'operations' => array(
+        'index' => array(
+          'help' => 'Retrieve game list',
+          'callback' => 'game_service_resource_game_listing_retrieve',
+          'access arguments' => array('access html game'),
+          'file' => array('type' => 'inc', 'module' => 'game_service', 'name' => 'resources/game_resource'),
+        ),
+      ),
+    ),
+  );
+  return $api;
+}

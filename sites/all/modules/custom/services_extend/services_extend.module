@@ -1,0 +1,1126 @@
+<?php
+function services_extend_init() {
+  $method = $_SERVER['REQUEST_METHOD'];
+
+  if (isset($_SERVER['HTTP_ORIGIN'])) {
+    drupal_add_http_header('Access-Control-Allow-Origin', $_SERVER['HTTP_ORIGIN']);
+  }
+  if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+    drupal_add_http_header('Access-Control-Allow-Headers', $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']);
+  }
+  if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD'])) {
+    drupal_add_http_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  }
+}
+
+/**
+ * Implements hook_services_request_preprocess_alter() from Services.
+ */
+function services_extend_services_request_preprocess_alter($controller, &$args, $options) {
+  if ($controller['callback'] == '_user_resource_login') {
+    $name = db_query("SELECT name FROM {users} WHERE LOWER(mail) = LOWER(:mail)", array(
+      ':mail' => $args[0]
+    ))->fetchField();
+    if (!empty($name)) {
+      $args[0] = $name;
+    }
+  }
+
+  if ($controller['callback'] == '_user_resource_update') {
+    if(isset($args[1]['field_theme_color'][LANGUAGE_NONE][0]['value'])) {
+      if(isset($args[0]) && !empty($args[0])) {
+        $user = user_load($args[0]);
+        if(!isset($user->field_gender[LANGUAGE_NONE][0]['value']) || !isset($user->field_full_name[LANGUAGE_NONE][0]['value']) || !isset($user->field_user_country[LANGUAGE_NONE][0]['tid']) || !isset($user->field_state[LANGUAGE_NONE][0]['tid']) || !isset($user->field_dob[LANGUAGE_NONE][0]['value'])) {
+          return services_error(t('Please enter user profile first'),406);
+        }
+        $nodeObj->uid = $node['uid'];
+      } else {
+        return services_error(t('User id does not exist.'),406);
+      }
+    }
+  }
+}
+
+function services_extend_services_request_postprocess_alter($controller, $args, &$result) {
+
+  $append_data = array();
+  if ($controller['callback'] == '_node_resource_retrieve') {
+    $total_count = $daycount = 1;
+    $nid = $args[0];
+    $query = db_select('node_counter', 'nc');
+    $query->fields('nc', array('totalcount','daycount'));
+    $query->condition('nc.nid', $nid, '=');
+    $count_records = $query->execute()->fetchassoc('totalcount');
+
+    if(!empty($count_records)) {
+      $total_count = $count_records['totalcount'] + 1;
+      $daycount = $count_records['daycount'] + 1;
+      // $updated = db_update('node_counter')
+      // ->fields(array('totalcount' => $total_count,'daycount' => $daycount))
+      // ->condition('uid', $result['uid'], '=')
+      // ->execute();
+    }
+
+    db_merge('node_counter')
+      ->key(array('nid' => $nid))
+      ->fields(array(
+            'totalcount' => $total_count,
+            'daycount' => $daycount,
+            'timestamp' => time()
+      ))
+      ->execute();
+  }
+  if ($controller['callback'] == '_user_resource_retrieve') {
+    $result->field_dob[LANGUAGE_NONE][0]['value'] = (isset($result->field_dob[LANGUAGE_NONE][0]['value']) && !empty($result->field_dob[LANGUAGE_NONE][0]['value'])) ? date('d/m/Y',strtotime($result->field_dob[LANGUAGE_NONE][0]['value'])) : '';
+
+    if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+      $result->field_dob = (isset($result->field_dob[LANGUAGE_NONE][0]['value']) && !empty($result->field_dob[LANGUAGE_NONE][0]['value'])) ? date('d/m/Y',strtotime($result->field_dob[LANGUAGE_NONE][0]['value'])) : '';
+      $result->field_mobile_number = (isset($result->field_mobile_number[LANGUAGE_NONE][0]['value']) && !empty($result->field_mobile_number[LANGUAGE_NONE][0]['value'])) ? $result->field_mobile_number[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_bio = (isset($result->field_bio[LANGUAGE_NONE][0]['value']) && !empty($result->field_bio[LANGUAGE_NONE][0]['value'])) ? $result->field_bio[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_full_name = (isset($result->field_full_name[LANGUAGE_NONE][0]['value']) && !empty($result->field_full_name[LANGUAGE_NONE][0]['value'])) ? $result->field_full_name[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_landline_number = (isset($result->field_landline_number[LANGUAGE_NONE][0]['value']) && !empty($result->field_landline_number[LANGUAGE_NONE][0]['value'])) ? $result->field_landline_number[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_school_college_name = (isset($result->field_school_college_name[LANGUAGE_NONE][0]['value']) && !empty($result->field_school_college_name[LANGUAGE_NONE][0]['value'])) ? $result->field_school_college_name[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_user_country = (isset($result->field_user_country[LANGUAGE_NONE][0]['tid']) && !empty($result->field_user_country[LANGUAGE_NONE][0]['tid'])) ? $result->field_user_country[LANGUAGE_NONE][0]['tid'] : '';
+      $result->field_state = (isset($result->field_state[LANGUAGE_NONE][0]['tid']) && !empty($result->field_state[LANGUAGE_NONE][0]['tid'])) ? $result->field_state[LANGUAGE_NONE][0]['tid'] : '';
+      $result->field_gender = (isset($result->field_gender[LANGUAGE_NONE][0]['value']) && !empty($result->field_gender[LANGUAGE_NONE][0]['value'])) ? $result->field_gender[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_theme_color = (isset($result->field_theme_color[LANGUAGE_NONE][0]['value']) && !empty($result->field_theme_color[LANGUAGE_NONE][0]['value'])) ? $result->field_theme_color[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_company_address = (isset($result->field_company_address[LANGUAGE_NONE][0]['value']) && !empty($result->field_company_address[LANGUAGE_NONE][0]['value'])) ? $result->field_company_address[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_company_profile = (isset($result->field_company_profile[LANGUAGE_NONE][0]['value']) && !empty($result->field_company_profile[LANGUAGE_NONE][0]['value'])) ? $result->field_company_profile[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_contact_person = (isset($result->field_contact_person[LANGUAGE_NONE][0]['value']) && !empty($result->field_contact_person[LANGUAGE_NONE][0]['value'])) ? $result->field_contact_person[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_contact_person_email = (isset($result->field_contact_person_email[LANGUAGE_NONE][0]['email']) && !empty($result->field_contact_person_email[LANGUAGE_NONE][0]['email'])) ? $result->field_contact_person_email[LANGUAGE_NONE][0]['email'] : '';
+      $result->field_contact_person_landline = (isset($result->field_contact_person_landline[LANGUAGE_NONE][0]['value']) && !empty($result->field_contact_person_landline[LANGUAGE_NONE][0]['value'])) ? $result->field_contact_person_landline[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_intern_contact_person = (isset($result->field_intern_contact_person[LANGUAGE_NONE][0]['value']) && !empty($result->field_intern_contact_person[LANGUAGE_NONE][0]['value'])) ? $result->field_intern_contact_person[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_intern_contact_person_no = (isset($result->field_intern_contact_person_no[LANGUAGE_NONE][0]['value']) && !empty($result->field_intern_contact_person_no[LANGUAGE_NONE][0]['value'])) ? $result->field_intern_contact_person_no[LANGUAGE_NONE][0]['value'] : '';
+      $result->field_intern_contact_person_emai = (isset($result->field_intern_contact_person_emai[LANGUAGE_NONE][0]['email']) && !empty($result->field_intern_contact_person_emai[LANGUAGE_NONE][0]['email'])) ? $result->field_intern_contact_person_emai[LANGUAGE_NONE][0]['email'] : '';
+      $result->field_company_industry = (isset($result->field_company_industry[LANGUAGE_NONE][0]['tid']) && !empty($result->field_company_industry[LANGUAGE_NONE][0]['tid'])) ? $result->field_company_industry[LANGUAGE_NONE][0]['tid'] : '';
+      $result->field_bio_to_be_show_on_article = (isset($result->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value']) && !empty($result->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'])) ? $result->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'] : '';
+    }
+  }
+  if ($controller['callback'] == '_system_resource_connect') {
+    if($result->user->uid>0) {
+      $user = user_load($result->user->uid);
+      $result->user = $user;
+    }
+  }
+  if ($controller['callback'] == 'flag_service_flag_content') {
+    if(isset($args[0]['entity_id']) && !empty($args[0]['entity_id']) && isset($args[0]['flag_name']) && ($args[0]['flag_name']=='i_am_interested')) {
+      $node = node_load($args[0]['entity_id']);
+      $user = user_load($node->uid);
+      $result1->contact_person = $user->field_intern_contact_person[LANGUAGE_NONE][0]['value'];
+      $result1->contact_person_no = $user->field_intern_contact_person_no[LANGUAGE_NONE][0]['value'];
+      $result1->contact_person_email = $user->field_intern_contact_person_emai[LANGUAGE_NONE][0]['email'];
+    }
+    else {
+      $result1 = $args[0];
+    }
+    $result = array('success'=>true,'data' => $result1);
+    return $result;
+  }
+  if($controller['callback'] == '_services_search_resource_node') {
+    $total_record = $result['total_result'];
+    unset($result['total_result']);
+    if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+      $result1->article_list = $result;
+      $result1->total_record = $total_record;
+      $result = array('success'=>true,'data' => $result1);
+      return $result;
+    }
+  }
+  if($controller['callback'] == '_file_resource_create_raw') {
+    $file = file_load($result[0]['fid']);
+    $result[0]['uri'] = file_create_url($file->uri);
+  }
+  
+  if(isset($args) && !empty($args)) {
+    if(isset($args[0]['view_name']) && isset($args[0]['display_id'])) {
+      // ARTICLE API SOURCE LOGIC
+      if($args[0]['view_name'] == 'homepage_photo_gallery' && $args[0]['display_id'] == 'services_1'){
+        foreach($result as $key=>$node) {
+          if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+
+          $galleries = $node->gallery_photo;
+          foreach($galleries as $gkey => $gallery) {
+            if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+              $result[$key]->gallery[$gkey]['photo_url'] = isset($gallery['photo']['uri']) ? image_style_url('homepage_photo_gallery',$gallery['photo']['uri']) : '';
+            }
+            else {
+              $result[$key]->gallery[$gkey]['photo'] = isset($gallery['photo']['uri']) ? image_style_url('homepage_photo_gallery',$gallery['photo']['uri']) : '';
+            }
+            $result[$key]->gallery[$gkey]['photo_description'] = isset($gallery['photo_description'])?$gallery['photo_description']:'';
+            $result[$key]->gallery[$gkey]['photo_title'] = isset($gallery['photo_title'])?$gallery['photo_title']:'';
+          }
+          unset($node->gallery_photo);
+        }
+      }else if($args[0]['view_name'] == 'homepage_photo_gallery' && $args[0]['display_id'] == 'services_2'){
+        foreach($result as $key=>$node) {
+          if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+
+          $galleries = $node->gallery_video;
+          foreach($galleries as $gkey => $gallery) {
+            $result[$key]->gallery[$gkey]['video'] = isset($gallery['video_url']['value'])?$gallery['video_url']['value']:'';
+            $result[$key]->gallery[$gkey]['video_description'] = isset($gallery['video_description'])?$gallery['video_description']:'';
+            $result[$key]->gallery[$gkey]['video_title'] = isset($gallery['video_title'])?$gallery['video_title']:'';
+          }
+          unset($node->gallery_video);
+        }
+      }else if($args[0]['view_name'] == 'video_gallery_admin_listing' && $args[0]['display_id'] == 'services_2'){
+        $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+        foreach($result as $key=>$node) {
+          unset($node->total_result);
+
+        if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+          foreach($node->gallery_videos as $gkey => $gallery) {
+            $result[$key]->gallery_videos[$gkey]['video'] = isset($gallery['video_url']['value']) ? file_create_url($gallery['video_url']['value']) : '';
+            unset($result[$key]->gallery_videos[$gkey]['video_url']);
+          }
+        }
+
+        if(!isset($_GET['term_node_tid_depth'])) {
+          if($key==0)
+            $result[$key]->main_gallery = 1;
+        }
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->videoGallery->categoryVideoGallery = $result;
+        $result1->total_record = $total_record;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }else if($args[0]['view_name'] == 'photo_gallery_admin_listing' && $args[0]['display_id'] == 'services_1'){
+      foreach($result as $key=>$node) {
+        $galleries = $node->gallery_photo;
+        foreach($galleries as $gkey => $gallery) {
+          if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+            $result[$key]->gallery[$gkey]['photo_url'] = isset($gallery['photo']['uri']) ? image_style_url('homepage_photo_gallery',$gallery['photo']['uri']) : '';
+          }
+          else {
+            $result[$key]->gallery[$gkey]['photo'] = isset($gallery['photo']['uri']) ? image_style_url('homepage_photo_gallery',$gallery['photo']['uri']) : '';
+          }
+          $result[$key]->gallery[$gkey]['photo_description'] = isset($gallery['photo_description'])?$gallery['photo_description']:'';
+          $result[$key]->gallery[$gkey]['photo_title'] = isset($gallery['photo_title'])?$gallery['photo_title']:'';
+        }
+        unset($node->gallery_photo);
+      }
+    }else if($args[0]['view_name'] == 'photo_gallery_admin_listing' && $args[0]['display_id'] == 'services_2'){
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(!isset($node->view_count))
+          $result[$key]->view_count = 0;
+
+          // $galleries = $node->gallery;
+          // foreach($galleries as $gkey => $gallery) {
+          //   $result[$key]->gallery[$gkey]['photo'] = isset($gallery['photo']['uri']) ? file_create_url($gallery['photo']['uri']) : '';
+          //   $result[$key]->gallery[$gkey]['photo_description'] = isset($gallery['photo_description'])?$gallery['photo_description']:'';
+          //   $result[$key]->gallery[$gkey]['photo_title'] = isset($gallery['photo_title'])?$gallery['photo_title']:'';
+          // }
+          unset($node->gallery_photo);
+          //unset($node->total_result);
+
+        if(!isset($_GET['term_node_tid_depth'])) {
+          if($key==0)
+            $result[$key]->main_gallery = 1;
+        }
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->photoGallery->categoryPhotoGallery = $result;
+        $result1->total_record = $total_record;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }else if($args[0]['view_name'] == 'article_api' && $args[0]['display_id'] == 'services_1') {
+      foreach($result as $key=>$node) {
+        if(isset($_GET['term_id']) && is_numeric($_GET['term_id'])) {
+          $term = taxonomy_term_load($_GET['term_id']);
+          if(isset($term->name)) {
+            $node->primary_category_id['tid'] = $_GET['term_id'];
+            $node->primary_category = $term->name;
+          }
+        }
+        $node->title = htmlspecialchars_decode($node->title, ENT_QUOTES);
+        $node->Intro = htmlspecialchars_decode($node->Intro, ENT_QUOTES);
+        switch($node->source) {
+          case 'user':
+            if($node->registered_or_nonregistered == 'user') {
+              if(isset($node->registered_user_name) && !empty($node->registered_user_name)){
+                $userObj = user_load($node->registered_user_name);
+                $result[$key]->source_user_id = $userObj->uid;
+                $result[$key]->source_name = $userObj->field_full_name[LANGUAGE_NONE][0]['value'];
+                $result[$key]->source_bio = $userObj->field_bio[LANGUAGE_NONE][0]['value'];
+                $result[$key]->ck_source_bio = $userObj->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'];
+                if(isset($userObj->picture) && !empty($userObj->picture)){
+                  $result[$key]->source_profile_picture = image_style_url('thumbnail',$userObj->picture->uri);
+                }
+                $result[$key]->source_school = $userObj->field_school_college_name[LANGUAGE_NONE][0]['value'];
+              }
+            } else if($node->registered_or_nonregistered == 'student') {
+              if(isset($node->nonregistered_user_name) && !empty($node->nonregistered_user_name)){
+                $userObj = node_load($node->nonregistered_user_name);
+                $result[$key]->source_user_id = $userObj->nid;
+                $result[$key]->source_name = $userObj->title;
+                $result[$key]->source_bio = $userObj->field_bio[LANGUAGE_NONE][0]['value'];
+                $result[$key]->ck_source_bio = $userObj->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'];
+                if(isset($userObj->field_profile_picture) && !empty($userObj->field_profile_picture)){
+                  $result[$key]->source_profile_picture = image_style_url('thumbnail',$userObj->field_profile_picture[LANGUAGE_NONE][0]['uri']);
+                }
+                if(isset($userObj->field_school_college_name) && !empty($userObj->field_school_college_name)) {
+                  $result[$key]->source_school = $userObj->field_school_college_name[LANGUAGE_NONE][0]['value'];
+                }
+              }
+            }
+          break;
+          case 'expert':
+            if(isset($node->expert_name) && !empty($node->expert_name)){
+              $userObj = node_load($node->expert_name);
+              $result[$key]->source_user_id = $userObj->nid;
+              $result[$key]->source_name = $userObj->title;
+              $result[$key]->source_bio = $userObj->field_bio[LANGUAGE_NONE][0]['value'];
+              $result[$key]->ck_source_bio = $userObj->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'];
+              if(isset($userObj->field_profile_picture) && !empty($userObj->field_profile_picture)){
+                $result[$key]->source_profile_picture = image_style_url('thumbnail',$userObj->field_profile_picture[LANGUAGE_NONE][0]['uri']);
+              }
+              unset($node->registered_or_nonregistered);
+            }
+          break;
+          case 'admin':
+            if(isset($node->loop_staff_name) && !empty($node->loop_staff_name)){
+              $userObj = node_load($node->loop_staff_name);
+              $result[$key]->source_user_id = $userObj->nid;
+              $result[$key]->source_name = $userObj->title;
+              $result[$key]->source_bio = $userObj->field_bio[LANGUAGE_NONE][0]['value'];
+              $result[$key]->source_email = $userObj->field_email[LANGUAGE_NONE][0]['email'];
+              $result[$key]->source_designation = $userObj->field_designation[LANGUAGE_NONE][0]['value'];
+              $result[$key]->ck_source_bio = $userObj->field_bio_to_be_show_on_article[LANGUAGE_NONE][0]['value'];
+              if(isset($userObj->field_profile_picture) && !empty($userObj->field_profile_picture)){
+                $result[$key]->source_profile_picture = image_style_url('thumbnail',$userObj->field_profile_picture[LANGUAGE_NONE][0]['uri']);
+              }
+              unset($node->registered_or_nonregistered);
+            }  
+          break;
+        }
+  
+        if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+  
+        if(!isset($node->like_count))
+          $result[$key]->like_count = 0;
+  
+        global $base_url;
+        $result[$key]->content = str_replace('src="/sites/default/files','src="'.$base_url.'/sites/default/files',$result[$key]->content);
+        
+        //unset($node->registered_or_nonregistered);
+        unset($node->registered_user_name);
+        unset($node->nonregistered_user_name);
+        unset($node->expert_name);
+        unset($node->loop_staff_name);
+  
+        if(isset($node->nid)) {
+          db_merge('node_counter')
+            ->key(array('nid' => $node->nid))
+            ->fields(array(
+              'daycount' => 1,
+              'totalcount' => 1,
+              'timestamp' => REQUEST_TIME,
+            ))
+            ->expression('daycount', 'daycount + 1')
+            ->expression('totalcount', 'totalcount + 1')
+            ->execute();
+        }
+      }
+    } 
+    else if(in_array($args[0]['view_name'], array('user_articles_api','search_articles','saved_article_api')) && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        switch($node->source) {
+          case 'user':
+            if($node->registered_or_nonregistered == 'user') {
+              if(isset($node->registered_user_name) && !empty($node->registered_user_name)){
+                $result[$key]->source_name = $node->registered_user_name;
+              }
+            } else if($node->registered_or_nonregistered == 'student') {
+              if(isset($node->nonregistered_user_name) && !empty($node->nonregistered_user_name)){
+                $result[$key]->source_name = $node->nonregistered_user_name;
+              }
+            }
+          break;
+          case 'expert':
+            if(isset($node->expert_name) && !empty($node->expert_name)){
+              $result[$key]->source_name = $node->expert_name;
+            }
+          break;
+          case 'admin':
+            if(isset($node->loop_staff_name) && !empty($node->loop_staff_name)){
+              $result[$key]->source_name = $node->loop_staff_name;
+            }  
+          break;
+        }
+        unset($node->registered_or_nonregistered);
+        unset($node->registered_user_name);
+        unset($node->nonregistered_user_name);
+        unset($node->expert_name);
+        unset($node->loop_staff_name);
+        unset($node->total_result);
+      }
+
+        if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+          $result1->article_list = $result;
+          $result1->total_record = $total_record;
+          $result = array('success'=>true,'data' => $result1);
+          return $result;
+        }
+      }
+      else if ($args[0]['view_name'] == 'currently_looping' && $args[0]['display_id'] == 'services_1') {
+        $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+        foreach($result as $key=>$node) {
+          switch($node->currently_looping_thumbnail_type) {
+            case 'square':
+              $result[$key]->thumbnail = $node->square_thumbnail;
+            break;
+            case 'rectangle':
+              $result[$key]->thumbnail = $node->rectangle_thumbnail;
+            break;
+            case 'vertical':
+              $result[$key]->thumbnail = $node->vertical_thumbnail;
+            break;
+            default:
+              $result[$key]->thumbnail = $node->vertical_thumbnail;
+          }
+
+          if(is_array($result[$key]->thumbnail) && count($result[$key]->thumbnail) == 0) {
+            $result[$key]->thumbnail = '';
+          }
+
+          if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+    
+          if(!isset($node->like_count))
+            $result[$key]->like_count = 0;
+    
+          //unset($node->square_thumbnail);
+          // unset($node->rectangle_thumbnail);
+          // unset($node->vertical_thumbnail);
+          unset($node->total_result);
+          if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+            unset($node->category);
+          }
+        }
+        $append_data['currently_looping_ad_script'] = variable_get('currently_looping_ad_script');
+        $append_data['currently_looping_ad_position'] = variable_get('currently_looping_ad_position');
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->article_list = $result;
+        $result1->total_record = $total_record;
+        $result1->misc = $append_data;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'most_popular_articles' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+  
+        if(!isset($node->like_count))
+          $result[$key]->like_count = 0;
+  
+        unset($node->total_result);
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->article_list = $result;
+        $result1->total_record = $total_record;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'homepage_most_popular_articles' && $args[0]['display_id'] == 'services_1') {
+      foreach($result as $key=>$node) {
+        if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+  
+        if(!isset($node->like_count))
+          $result[$key]->like_count = 0;
+      }
+    }
+    else if ($args[0]['view_name'] == 'sub_categories_articles' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+  
+        if(!isset($node->like_count))
+          $result[$key]->like_count = 0;
+  
+        unset($node->total_result);
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->article_list = $result;
+        $result1->total_record = $total_record;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'sponsored_article_api' && $args[0]['display_id'] == 'services_1') {
+      if(isset($result[0])) {
+        if(!isset($result[0]->view_count))
+          $result[0]->view_count = 0;
+
+        if(!isset($result[0]->like_count))
+          $result[0]->like_count = 0;
+      }
+    }
+    else if ($args[0]['view_name'] == 'propose_an_article' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(isset($node->tid)) {
+          $parent_term = taxonomy_get_parents($node->tid);
+          if(count($parent_term) > 0) {
+            $parent_term = array_shift($parent_term);
+            $node->parent = $parent_term->name;
+            $node->color = isset($parent_term->field_color[LANGUAGE_NONE][0]['rgb']) ? $parent_term->field_color[LANGUAGE_NONE][0]['rgb'] : '';
+          }
+          else {
+            $node->parent = $node->category_name;
+            $node->category_name = '';
+          }
+          $node->updated_date = ($node->Status != 'Pending') ? $node->updated_date : '';
+          unset($node->tid);
+        }
+        else {
+          $node->parent = '';
+          $node->category_name = '';
+          $node->color = '';
+        }
+        $node->updated_date = ($node->Status != 'Pending') ? $node->updated_date : '';
+        unset($node->total_result);
+      }
+    }
+    else if ($args[0]['view_name'] == 'related_articles' && $args[0]['display_id'] == 'services_1') {
+      foreach($result as $key=>$node) {
+        if(!isset($node->view_count))
+            $result[$key]->view_count = 0;
+  
+        if(!isset($node->like_count))
+          $result[$key]->like_count = 0;
+      }
+    }
+    else if ($args[0]['view_name'] == 'taxonomy_view' && $args[0]['display_id'] == 'services_1') {
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->category_list = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'taxonomy_view' && $args[0]['display_id'] == 'services_2') {
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->sub_category_list = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'quiz_api' && $args[0]['display_id'] == 'services_1') {
+      global $user;
+      foreach($result as $key=>$node) {
+        if(is_array($node->quiz_thumbnail) && count($node->quiz_thumbnail) == 0) {
+          $node->quiz_thumbnail = '';
+        }
+        if(is_array($node->location) && count($node->location) == 0) {
+          $node->location = '';
+        }
+        $node->status = 1;
+        if($node->quiz_always == 0) {
+          if($node->close_date < time()) {
+            $node->status = 0;
+          }
+        }
+          $quiz_result = db_select('quiz_node_results','nr')->fields('nr',array('result_id'))->condition('nr.nid',$node->nid,'=')->condition('nr.uid',$user->uid,'=')->condition('nr.time_end','','<>')->condition('nr.type',$node->type)->execute()->fetchField();
+          
+        if($quiz_result) {
+          $node->attempted = 1;
+        } else {
+          $node->attempted = 0;
+        }
+        
+        if(is_array($node->competition_venue) &&  count($node->competition_venue) == 0) {
+          $node->competition_venue = '';
+        }
+        if(is_array($node->competition_date) &&  count($node->competition_date) == 0) {
+          $node->competition_date = '';
+        }
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->quiz_list = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(is_array($node->sponsored_logo) && count($node->sponsored_logo) == 0) {
+          $node->sponsored_logo = '';
+        }
+        if(is_array($node->thumbnail) && count($node->thumbnail) == 0) {
+          $node->thumbnail = '';
+        }
+
+        if($node->address_type=='gmap') {
+          $node->address = $node->geolocation_address;
+        }
+        else if(count($node->address)==0) {
+          $node->address = null;
+        }
+
+        // if(isset($_GET['mobile']) && $_GET['mobile']!=1) {
+        //   if(empty($node->show_time) || $node->show_time==0) {
+        //     if(isset($node->date['value']) && !empty($node->date['value'])) {
+        //       $node->date['value'] = date('jS F, Y',strtotime($node->date['value']));
+        //     }
+            
+        //     if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+        //       $node->date['value2'] = date('jS F, Y',strtotime($node->date['value2']));
+        //     }
+        //   }
+        //   else {
+        //     if(isset($node->date['value']) && !empty($node->date['value'])) {
+        //       $node->date['value'] = date('jS F, Y - g:i A',strtotime($node->date['value']));
+        //     }
+            
+        //     if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+        //       $node->date['value2'] = date('jS F, Y - g:i A',strtotime($node->date['value2']));
+        //     }
+        //   }
+        // }
+
+        // unset($node->show_time);
+        unset($node->address_type);
+        unset($node->geolocation_address);
+        unset($node->total_result);
+      }
+      $result1->event = $result;
+      $result = array('success'=>true,'data' => $result1);
+      if(isset($total_record)) {
+        $result['total_record'] = $total_record;
+      }
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_2') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(is_array($node->sponsored_logo) && count($node->sponsored_logo) == 0) {
+          $node->sponsored_logo = '';
+        }
+        if(is_array($node->sponsored_by) &&  count($node->sponsored_by) == 0) {
+          $node->sponsored_by = '';
+        }
+
+        if($node->address_type=='gmap') {
+          $node->address = $node->geolocation_address;
+        }
+        else if(count($node->address)==0) {
+          $node->address = null;
+        }
+
+        $date2 = '';
+
+        if(empty($node->show_time) || $node->show_time==0) {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $date1 = strtotime($node->date['value']);
+            $node->date['value'] = date('jS F, Y',$date1);
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $date2 = strtotime($node->date['value2']);
+            $node->date['value2'] = date('jS F, Y',$date2);
+          }
+        }
+        else {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $date1 = strtotime($node->date['value']);
+            $node->date['value'] = date('jS F, Y - g:i A',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $date2 = strtotime($node->date['value2']);
+            $node->date['value2'] = date('jS F, Y - g:i A',strtotime($node->date['value2']));
+          }
+        }
+
+        unset($node->show_time);
+        unset($node->address_type);
+        unset($node->geolocation_address);
+        unset($node->total_result);
+
+        if($key <= 2) {
+          $thumbnail = $node->thumbnail;
+          $node->thumbnail = !is_array($node->thumbnail) ? file_create_url($node->thumbnail) : '';
+          $result1->main_events[] = $node;
+        }
+
+        if(!empty($date2) && ($date2 >= time())) {
+          $node->thumbnail = !is_array($thumbnail) ? file_create_url($node->thumbnail) : '';
+          $result1->current_events[] = $node;
+        }
+      }
+      if(isset($total_record)) {
+        $result1->total_record = $total_record;
+      }
+      $result = array('success'=>true,'data' => $result1);
+      
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_3') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(is_array($node->sponsored_logo) && count($node->sponsored_logo) == 0) {
+          $node->sponsored_logo = '';
+        }
+        if(is_array($node->thumbnail) &&  count($node->thumbnail) == 0) {
+          $node->thumbnail = '';
+        }
+        if(is_array($node->sponsored_by) &&  count($node->sponsored_by) == 0) {
+          $node->sponsored_by = '';
+        }
+
+        if($node->address_type=='gmap') {
+          $node->address = $node->geolocation_address;
+        }
+        else if(count($node->address)==0) {
+          $node->address = null;
+        }
+
+        if(empty($node->show_time) || $node->show_time==0) {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y',strtotime($node->date['value2']));
+          }
+        }
+        else {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y - g:i A',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y - g:i A',strtotime($node->date['value2']));
+          }
+        }
+
+        unset($node->show_time);
+        unset($node->address_type);
+        unset($node->geolocation_address);
+        unset($node->total_result);
+
+        $result1->past_events[] = $node;
+      }
+      if(isset($total_record)) {
+        $result1->total_record =  $total_record;
+      }
+      
+      $result = array('success'=>true,'data' => $result1);
+      
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_4') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(is_array($node->sponsored_logo) && count($node->sponsored_logo) == 0) {
+          $node->sponsored_logo = '';
+        }
+        if(is_array($node->thumbnail) &&  count($node->thumbnail) == 0) {
+          $node->thumbnail = '';
+        }
+        if(is_array($node->sponsored_by) &&  count($node->sponsored_by) == 0) {
+          $node->sponsored_by = '';
+        }
+
+        if($node->address_type=='gmap') {
+          $node->address = $node->geolocation_address;
+        }
+        else if(count($node->address)==0) {
+          $node->address = null;
+        }
+
+        if(empty($node->show_time) || $node->show_time==0) {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y',strtotime($node->date['value2']));
+          }
+        }
+        else {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y - g:i A',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y - g:i A',strtotime($node->date['value2']));
+          }
+        }
+
+        unset($node->show_time);
+        unset($node->address_type);
+        unset($node->geolocation_address);
+        unset($node->total_result);
+
+        $result1->upcoming_events[] = $node;
+      }
+      $result = array('success'=>true,'data' => $result1);
+      if(isset($total_record)) {
+        $result['total_record'] = $total_record;
+      }
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_5') {
+      if(is_array($result[0]->sponsored_logo) && count($result[0]->sponsored_logo) == 0) {
+        $result[0]->sponsored_logo = '';
+      }
+      if(is_array($result[0]->thumbnail) &&  count($result[0]->thumbnail) == 0) {
+        $result[0]->thumbnail = '';
+      }
+      if(is_array($result[0]->sponsored_by) &&  count($result[0]->sponsored_by) == 0) {
+        $result[0]->sponsored_by = '';
+      }
+      if(isset($result[0]->description['value']) && !empty($result[0]->description['value'])) {
+        $result[0]->description = $result[0]->description['value'];
+      }
+      if($result[0]->address_type=='gmap') {
+        if(isset($result[0]->geolocation_address['administrative_area'])) {
+          $result[0]->geolocation_address['emirate'] = $result[0]->geolocation_address['administrative_area'];
+          unset($result[0]->geolocation_address['administrative_area']);
+        }
+
+        if(isset($result[0]->geolocation_address['locality'])) {
+          $result[0]->geolocation_address['city'] = $result[0]->geolocation_address['locality'];
+          unset($result[0]->geolocation_address['locality']);
+        }
+
+        if(isset($result[0]->geolocation_address['postal_code'])) {
+          $result[0]->geolocation_address['pincode'] = $result[0]->geolocation_address['postal_code'];
+          unset($result[0]->geolocation_address['postal_code']);
+        }
+
+        if(isset($result[0]->geolocation_address['thoroughfare'])) {
+          $result[0]->geolocation_address['address1'] = $result[0]->geolocation_address['thoroughfare'];
+          unset($result[0]->geolocation_address['thoroughfare']);
+        }
+
+        if(isset($result[0]->geolocation_address['premise'])) {
+          $result[0]->geolocation_address['address2'] = $result[0]->geolocation_address['premise'];
+          unset($result[0]->geolocation_address['premise']);
+        }
+
+        if(isset($result[0]->geolocation_address['data'])) {
+          $address = unserialize($result[0]->geolocation_address['data']);
+          $result[0]->address = $address['formatted_address'];
+          $result[0]->geolocation_address['latitude'] = $address['latitude'];
+          $result[0]->geolocation_address['longitude'] = $address['longitude'];
+          $result[0]->geolocation_address['formatted_address'] = $address['formatted_address'];
+          unset($result[0]->geolocation_address['data']);
+        }
+      }
+      else if(count($result[0]->address)==0) {
+        $result[0]->address = null;
+      }
+
+      if(empty($result[0]->show_time) || $result[0]->show_time==0) {
+        if(isset($result[0]->date['value']) && !empty($result[0]->date['value'])) {
+          $result[0]->date['value'] = date('jS F, Y',strtotime($result[0]->date['value']));
+        }
+        
+        if(isset($result[0]->date['value2']) && !empty($result[0]->date['value2'])) {
+          $result[0]->date['value2'] = date('jS F, Y',strtotime($result[0]->date['value2']));
+        }
+      }
+      else {
+        if(isset($result[0]->date['value']) && !empty($result[0]->date['value'])) {
+          $result[0]->date['value'] = date('jS F, Y - g:i A',strtotime($result[0]->date['value']));
+        }
+        
+        if(isset($result[0]->date['value2']) && !empty($result[0]->date['value2'])) {
+          $result[0]->date['value2'] = date('jS F, Y - g:i A',strtotime($result[0]->date['value2']));
+        }
+      }
+
+      unset($result[0]->show_time);
+      unset($result[0]->address_type);
+      unset($result[0]->formatted_address);
+
+      $result1->event_details = $result[0];
+      $result = array('success'=>true,'data' => $result1);
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'event' && $args[0]['display_id'] == 'services_6') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        if(is_array($node->sponsored_logo) && count($node->sponsored_logo) == 0) {
+          $node->sponsored_logo = '';
+        }
+        if(is_array($node->thumbnail) &&  count($node->thumbnail) == 0) {
+          $node->thumbnail = '';
+        }
+        if(is_array($node->sponsored_by) &&  count($node->sponsored_by) == 0) {
+          $node->sponsored_by = '';
+        }
+
+        if($node->address_type=='gmap') {
+          $node->address = $node->geolocation_address;
+        }
+        else if(count($node->address)==0) {
+          $node->address = null;
+        }
+
+        if(empty($node->show_time) || $node->show_time==0) {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y',strtotime($node->date['value2']));
+          }
+        }
+        else {
+          if(isset($node->date['value']) && !empty($node->date['value'])) {
+            $node->date['value'] = date('jS F, Y - g:i A',strtotime($node->date['value']));
+          }
+          
+          if(isset($node->date['value2']) && !empty($node->date['value2'])) {
+            $node->date['value2'] = date('jS F, Y - g:i A',strtotime($node->date['value2']));
+          }
+        }
+
+        unset($node->show_time);
+        unset($node->address_type);
+        unset($node->geolocation_address);
+        unset($node->total_result);
+
+        $result1->my_events[] = $node;
+      }
+      if(isset($total_record)) {
+        $result1->total_record =  $total_record;
+      }
+      
+      $result = array('success'=>true,'data' => $result1);
+      
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'internship' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+      	if(!$node->is_flagged) {
+      		$node->intern_contact_person = '';
+      		$node->intern_contact_person_email = '';
+      		$node->intern_contact_person_no = '';
+      	}
+        unset($node->total_result);
+        $result1->internships[] = $node;
+      }
+      $result1->total_record = $total_record;
+      $result = array('success'=>true,'data' => $result1);
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'internship' && $args[0]['display_id'] == 'services_2') {
+      //print "<pre>"; print_r($result); die;
+      $result[0]->location = $result[0]->location['tid'];
+      $result[0]->role = $result[0]->role['tid'];
+      foreach ($result[0]->key_skills as $value) {
+        $key_skills[] = $value['tid'];
+      }
+      $result[0]->key_skills = $key_skills;
+    }
+    else if ($args[0]['view_name'] == 'ask_the_expert' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        unset($node->total_result);
+        $result1->my_questions[] = $node;
+      }
+      $result1->total_record = $total_record;
+      $result = array('success'=>true,'data' => $result1);
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'ask_the_expert' && $args[0]['display_id'] == 'services_2') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        unset($node->total_result);
+        $result1->other_questions[] = $node;
+      }
+      $result1->total_record = $total_record;
+      $result = array('success'=>true,'data' => $result1);
+      return $result;
+    }
+    else if ($args[0]['view_name'] == 'article_comments' && $args[0]['display_id'] == 'services_1') {
+      $nid = $_GET['nid'];
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      $result1 = array();
+      foreach($result as $key=>$node) {
+        unset($node->total_result);
+        if(isset($node->picture) && !empty($node->picture)) {
+          preg_match_all('/src="([^"]*)"/', $node->picture, $photomatches, PREG_PATTERN_ORDER);
+          $result[$key]->picture = $photomatches[1][0];
+        }
+        $result1[] = $result[$key];
+
+        $jsonurl = FRONT_PAGE_PATH."/loop/api/article-comment-reply.json?nid=".$nid."&pid=".$node->cid;
+        $json = file_get_contents($jsonurl);
+        $reply_raw = json_decode($json);
+        $replys =  $reply_raw->data;
+
+        foreach ($replys as $reply) {
+          if(isset($reply->picture) && !empty($reply->picture)) {
+            preg_match_all('/src="([^"]*)"/', $reply->picture, $photomatches, PREG_PATTERN_ORDER);
+            $reply->picture = $photomatches[1][0];
+          }
+          $result1[] = $reply;
+        }
+      }
+      $result = $result1;
+    }
+    else if ($args[0]['view_name'] == 'article_registered_user_detail' && $args[0]['display_id'] == 'services_1') {
+      if(isset($result[0]->thumbnail) && !empty($result[0]->thumbnail)) {
+        preg_match_all('/src="([^"]*)"/', $result[0]->thumbnail, $photomatches, PREG_PATTERN_ORDER);
+        $result[0]->thumbnail = $photomatches[1][0];
+      }
+      else {
+        $result[0]->thumbnail = '';
+      }
+      if(is_array($result[0]->ck_biography) && count($result[0]->ck_biography) == 0) {
+        $result[0]->ck_biography = '';
+      }
+      if(is_array($result[0]->designation) && count($result[0]->designation) == 0) {
+        $result[0]->designation = '';
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->user_details = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if ($args[0]['view_name'] == 'article_user_detail' && $args[0]['display_id'] == 'services_1') {
+      if(isset($result[0]->thumbnail) && !empty($result[0]->thumbnail)) {
+        preg_match_all('/src="([^"]*)"/', $result[0]->thumbnail, $photomatches, PREG_PATTERN_ORDER);
+        $result[0]->thumbnail = $photomatches[1][0];
+      }
+      else {
+        $result[0]->thumbnail = '';
+      }
+      if(is_array($result[0]->ck_biography) && count($result[0]->ck_biography) == 0) {
+        $result[0]->ck_biography = '';
+      }
+      if(is_array($result[0]->designation) && count($result[0]->designation) == 0) {
+        $result[0]->designation = '';
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->user_details = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if($args[0]['view_name'] == 'category_article_listing_api' && $args[0]['display_id'] == 'services_1') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        $node->category_id = $_GET['tid'];
+
+        unset($node->total_result);
+        if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+          unset($node->category);
+        }
+      }
+
+      if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+        $result1->article_list = $result;
+        $result1->total_record = $total_record;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+    else if($args[0]['view_name'] == 'category_article_listing_api' && $args[0]['display_id'] == 'services_2') {
+      $total_record = (isset($result[0]->total_result) && !empty($result[0]->total_result)) ? $result[0]->total_result : 0;
+      foreach($result as $key=>$node) {
+        unset($node->total_result);
+        if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+          unset($node->category);
+        }
+      }
+
+        if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+          $result1->article_list = $result;
+          $result1->total_record = $total_record;
+          $result = array('success'=>true,'data' => $result1);
+          return $result;
+        }
+      }
+      else if($args[0]['view_name'] == 'category_top_stories' && $args[0]['display_id'] == 'services_1') {
+        if(isset($_GET['term_node_tid_depth']) && is_numeric($_GET['term_node_tid_depth'])) {
+          $term = taxonomy_term_load($_GET['term_node_tid_depth']);
+          if(isset($term->name)) {
+            foreach($result as $key=>$node) {
+              $node->primary_category = $term->name;
+              $node->category_id = $_GET['term_node_tid_depth'];
+            }
+
+          }
+        }
+      }
+      else if($args[0]['view_name'] == 'push_notification_article' && $args[0]['display_id'] == 'services_1') {
+        $result1->article_list = $result;
+        $result = array('success'=>true,'data' => $result1);
+        return $result;
+      }
+    }
+  }
+  $result = array('success'=>true,'data' => $result);
+
+  if(isset($total_record)) {
+    $result['total_record'] = $total_record;
+  }
+  if($append_data) {
+    $result['misc'] = $append_data;
+  }
+
+  return $result;
+}
+
+function services_extend_rest_server_execute_errors_alter(&$error_alter_array, $controller, $arguments){
+  
+  if ($controller['callback'] == '_user_resource_create') {
+    if(isset($error_alter_array['body_data']['form_errors']['name'])) {
+      $error_alter_array['header_message'] = $error_alter_array['code'].' '.strip_tags($error_alter_array['body_data']['form_errors']['mail']);
+      unset($error_alter_array['body_data']['form_errors']['name']);
+    }
+  }
+
+  $response['success'] = false;
+  $response['data'] = array();
+
+  if(is_array($error_alter_array['body_data'])){
+    $response['error'] = $error_alter_array['body_data']['form_errors'];
+    sort($response['error']);
+  } else {
+    if(isset($_GET['mobile']) && $_GET['mobile']==1) {
+      $response['error'] = $error_alter_array['body_data'];
+      $response['data'] = new StdClass();
+    }
+    else {
+      $response['error'] = array($error_alter_array['body_data']);
+    }
+  }
+  $response['data'] = array();
+
+  if($error_alter_array['body_data']=='CSRF validation failed') {
+    $response['error'] = array(str_replace('CSRF validation failed', 'Something went wrong. Please try again', $error_alter_array['header_message']));
+  }
+
+  return $error_alter_array['body_data'] = $response;
+}

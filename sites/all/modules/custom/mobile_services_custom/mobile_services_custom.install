@@ -1,0 +1,46 @@
+<?php
+function mobile_services_custom_schema() {
+	$schema['user_device'] = array(
+		'description' => 'Base table for User mobile device details.',
+		'fields' => array(
+			'id' => array(
+				'description' => 'The primary identifier for a User device.', 
+				'type' => 'serial',
+				'not null' => TRUE
+			),
+			'uid' => array(
+				'description' => "User's {users}.uid.",
+				'type' => 'int',
+				'not null' => TRUE
+			),
+			'device_id' => array(
+				'description' => 'Mobile device id of User.',
+				'type' => 'varchar',
+				'length' => 100,
+				'not null' => TRUE
+			),
+			'model' => array(
+				'description' => 'Mobile device model.',
+				'type' => 'varchar',
+				'length' => 200,
+				'not null' => TRUE
+			),
+			'type' => array(
+				'description' => 'Mobile device type.',
+				'type' => 'varchar',
+				'length' => 50,
+				'not null' => TRUE
+			),
+			'push_notification' => array(
+				'description' => 'Whether the user push notification is on(1) or off(0).',
+		        'type' => 'int',
+		        'not null' => TRUE,
+		        'default' => 1,
+		        'size' => 'tiny',
+		    ),
+		),
+		'primary key' => array('id'),
+	);
+	return $schema;
+}
+?>
